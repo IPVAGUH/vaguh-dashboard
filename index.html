@@ -1,0 +1,2122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>VAGUH Performance Tuning Center</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #1a1a1a; min-height: 100vh; }
+  html { background: #1a1a1a; }
+  #root { min-height: 100vh; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+  .tab-scroll::-webkit-scrollbar { display: none; }
+</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
+<script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+<script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend, ComposedChart } = Recharts;
+
+
+// ═══════════════════════════════════════════════════════
+// VAGUH PERFORMANCE TUNING CENTER
+// Inspired by audif1.com — Audi F1 2026 Dark Mode
+// Premium dark theme with clean editorial design language
+// ═══════════════════════════════════════════════════════
+
+const C = {
+  // Audi F1 2026 — Dark Mode (audif1.com footer aesthetic)
+  carbon: "#1a1a1a",            // Dark charcoal base (audif1.com footer)
+  carbonAlt: "#222222",         // Slightly lighter for sections
+  titanium: "#c0c0c0",          // Light silver (headings on dark)
+  titaniumDark: "#707070",      // Mid grey
+  titaniumDim: "rgba(255, 255, 255, 0.06)",
+  red: "#e8350e",               // Audi F1 red-orange (CTAs, accents)
+  redGlow: "rgba(232, 53, 14, 0.2)",
+  redDim: "rgba(232, 53, 14, 0.1)",
+  gold: "#d4a843",              // Warm gold accent
+  goldGlow: "rgba(212, 168, 67, 0.2)",
+  goldDim: "rgba(212, 168, 67, 0.1)",
+  green: "#2dd4a0",             // Bright teal (success on dark)
+  greenDim: "rgba(45, 212, 160, 0.1)",
+  amber: "#f5a623",             // Amber
+  amberDim: "rgba(245, 166, 35, 0.1)",
+  white: "#f0ede8",             // Warm white text (audif1.com cream)
+  text: "#c8c4be",              // Body text (warm light grey)
+  muted: "#706e6a",             // Muted warm grey
+  cardBg: "#242424",            // Dark card bg (subtle lift off base)
+  cardBorder: "rgba(255, 255, 255, 0.06)",
+  cardHover: "rgba(232, 53, 14, 0.06)",
+};
+
+const card = {
+  background: C.cardBg,
+  borderRadius: 12,
+  padding: "24px 28px",
+  marginBottom: 16,
+  boxShadow: "0 2px 8px rgba(0,0,0,0.3)",
+  border: `1px solid ${C.cardBorder}`,
+};
+
+const cardInner = {
+  background: "#2a2a2a",
+  borderRadius: 10,
+  padding: "16px 20px",
+  border: `1px solid ${C.cardBorder}`,
+};
+
+const tipStyle = {
+  background: "#2e2e2e",
+  boxShadow: "0 4px 12px rgba(0,0,0,0.4)",
+  border: `1px solid rgba(255,255,255,0.08)`,
+  borderRadius: 8,
+  color: C.text,
+  fontSize: 12,
+};
+
+const PIE_COLORS = [C.red, C.green, "#5b8def", C.gold, "#a78bfa", "#2dd4bf"];
+
+// ── KPIs ──
+const kpis = [
+    { label: "Subscribers", value: "9,040", icon: "👥", color: C.titanium, trend: "", down: false },
+    { label: "Total Views", value: "2.1M", icon: "👁", color: C.green, trend: "", down: false },
+    { label: "Watch Hours", value: "17,031", icon: "⏱", color: C.titanium, trend: "", down: false },
+    { label: "Revenue", value: "$1,956", icon: "💰", color: C.amber, trend: "~$161/mo", down: false },
+    { label: "Avg View %", value: "22.4%", icon: "🎯", color: C.green, trend: "", down: false },
+    { label: "Videos", value: "194", icon: "🎬", color: C.red, trend: "", down: false },
+  ];
+
+// ── CATEGORY DATA ──
+const categoryData = [
+  { name: "Audio/Speaker", videos: 7, views: 60085, revenue: 13246, rpm: 220.5, avgViews: 8584, priority: "HIGH", color: C.green },
+  { name: "Audi S5 Build", videos: 25, views: 58904, revenue: 27844, rpm: 472.7, avgViews: 2356, priority: "HIGH", color: C.red },
+  { name: "VW Golf How-To", videos: 12, views: 72139, revenue: 5854, rpm: 81.1, avgViews: 6012, priority: "HIGH", color: C.titanium },
+  { name: "VW Golf Mods", videos: 14, views: 35668, revenue: 2862, rpm: 80.3, avgViews: 2548, priority: "MED", color: C.amber },
+  { name: "SQ7 Build", videos: 4, views: 19654, revenue: 4243, rpm: 215.9, avgViews: 4914, priority: "HIGH", color: "#f472b6" },
+  { name: "Track/Drag", videos: 8, views: 17614, revenue: 3827, rpm: 217.3, avgViews: 2202, priority: "MED", color: "#2dd4bf" },
+  { name: "RS6 Content", videos: 6, views: 9923, revenue: 10006, rpm: 1008.4, avgViews: 1654, priority: "MED", color: "#fb923c" },
+  { name: "Porsche 911", videos: 15, views: 8738, revenue: 150, rpm: 17.2, avgViews: 583, priority: "CRITICAL FIX", color: C.red },
+  { name: "VW/Audi General", videos: 10, views: 43893, revenue: 9976, rpm: 227.3, avgViews: 4389, priority: "MED", color: C.titaniumDark },
+];
+
+// ── TRAFFIC ──
+const trafficData = [
+    { name: "YouTube Search", views: 179223, pct: 44.3, hours: 6039, ctr: null, insight: "" },
+    { name: "External", views: 75522, pct: 18.7, hours: 2948, ctr: null, insight: "" },
+    { name: "Browse Features", views: 62785, pct: 15.5, hours: 3352, ctr: null, insight: "" },
+    { name: "Suggested Videos", views: 42236, pct: 10.4, hours: 3216, ctr: null, insight: "" },
+    { name: "Shorts Feed", views: 16683, pct: 4.1, hours: 94, ctr: null, insight: "" },
+    { name: "Other", views: 9610, pct: 2.4, hours: 402, ctr: null, insight: "" },
+    { name: "Channel Pages", views: 7689, pct: 1.9, hours: 344, ctr: null, insight: "" },
+    { name: "Other YouTube", views: 6069, pct: 1.5, hours: 385, ctr: null, insight: "" },
+    { name: "Playlists", views: 3647, pct: 0.9, hours: 219, ctr: null, insight: "" },
+    { name: "End Screens", views: 806, pct: 0.2, hours: 19, ctr: null, insight: "" },
+    { name: "Notifications", views: 279, pct: 0.1, hours: 6, ctr: null, insight: "" },
+    { name: "Annotation", views: 77, pct: 0.0, hours: 7, ctr: null, insight: "" },
+    { name: "Immersive Live", views: 45, pct: 0.0, hours: 0, ctr: null, insight: "" },
+    { name: "Sound Page", views: 32, pct: 0.0, hours: 0, ctr: null, insight: "" },
+    { name: "Hashtags", views: 21, pct: 0.0, hours: 0, ctr: null, insight: "" },
+  ];
+
+const revenueData = [
+    { name: "Watch Page Ads", value: 1874.18, pct: 95.8 },
+    { name: "YouTube Premium", value: 70.43, pct: 3.6 },
+    { name: "Shorts Feed Ads", value: 11.74, pct: 0.6 },
+  ];
+
+const subData = [
+    { name: "Not Subscribed", views: 392396, pct: 97 },
+    { name: "Subscribed", views: 12328, pct: 3 },
+  ];
+
+const topVideos = [
+    { title: "IS THIS YOUR EA888's NEXT MOD?", views: 34202, rev: 5.04, ctr: 0, cat: "", rpm: 0.15 },
+    { title: "How to Replace the Battery on a VW Golf MK7 (Step-by-Step)", views: 26329, rev: 177.43, ctr: 0, cat: "", rpm: 6.74 },
+    { title: "Audi Q7 (07-15) Cabin Air Filter Replacement", views: 26152, rev: 2.66, ctr: 0, cat: "", rpm: 0.1 },
+    { title: "Upgrade the B&O Speakers on Your Audi A4, S4, A5, S5 or RS5 ", views: 21891, rev: 127.82, ctr: 0, cat: "", rpm: 5.84 },
+    { title: "VW Golf MK7 LED Tail Light Upgrade - deAutoLED Install", views: 16688, rev: 59.35, ctr: 0, cat: "", rpm: 3.56 },
+    { title: "Upgrade the B&O Speakers on Your Audi A5, S5 or RS5 Sportbac", views: 15288, rev: 73.93, ctr: 0, cat: "", rpm: 4.84 },
+    { title: "MQB Jack Pad Kit Install - Easiest VW/Audi Mod You Need", views: 11991, rev: 1.56, ctr: 0, cat: "", rpm: 0.13 },
+    { title: "How To Install A CarbnLab RS Grill On Your Audi B9 S5", views: 8679, rev: 84.56, ctr: 0, cat: "", rpm: 9.74 },
+    { title: "VW MK8 Golf Center Speaker Replacement - Easy Audio Upgrade", views: 8017, rev: 35.18, ctr: 0, cat: "", rpm: 4.39 },
+    { title: "Integrated Engineering Intake Install & Sound - VW MK7 Golf ", views: 7958, rev: 55.59, ctr: 0, cat: "", rpm: 6.99 },
+    { title: "Audi SQ7 700HP Build - Maxton Aero, Dyno & Transformation", views: 7726, rev: 59.82, ctr: 0, cat: "", rpm: 7.74 },
+    { title: "This Audi Part WILL Break & Lock You Out of the Engine Bay", views: 7647, rev: 1.0, ctr: 0, cat: "", rpm: 0.13 },
+    { title: "Upgrade your Audi’s Flappy Paddle Shifters With These Urus S", views: 7556, rev: 34.58, ctr: 0, cat: "", rpm: 4.58 },
+    { title: "VW Golf R Misfire FIXED with APR Ignition Coils and Spark Pl", views: 7267, rev: 54.42, ctr: 0, cat: "", rpm: 7.49 },
+    { title: "Audi SQ7 with APR Tune - Is It a Budget RS6? Review & Drive", views: 7079, rev: 39.42, ctr: 0, cat: "", rpm: 5.57 },
+  ];
+
+// ── PORSCHE RETITLE DATA ──
+// Title changes applied: March 11, 2026 (Week 1 baseline)
+const TITLE_CHANGE_DATE = "2026-03-11";
+const porscheRetitles = [
+  { old: "1973 PORSCHE 911 - BETTER THAN A BARN FIND? : Project Janis 01", newTitle: "I Bought a 1973 Porsche 911T for $30K - Here's What I Found", baselineViews: 149, baselineCtr: 1.12, status: "LIVE" },
+  { old: "You Should Buy a Vintage Porsche 911 Project Car.", newTitle: "Why a Vintage Porsche 911 Is the Best Project Car Right Now", baselineViews: 1667, baselineCtr: 1.91, status: "LIVE" },
+  { old: "EVERYTHING WRONG With Our Porsche 911 Project", newTitle: "Every Problem With My 1973 Porsche 911T - Full Inspection", baselineViews: 462, baselineCtr: 0.32, status: "LIVE" },
+  { old: "Tearing Down a Porsche 911: Our Restoration Journey Starts Now!", newTitle: "Stripping a 1973 Porsche 911T to Bare Metal - Restoration Begins", baselineViews: 61, baselineCtr: 0.37, status: "LIVE" },
+  { old: "Porsche 911 Project - First Wash & Chat with Dominic Dobson", newTitle: "First Wash in 30 Years: 1973 Porsche 911T Deep Clean (ft. Dobson)", baselineViews: 104, baselineCtr: 0.87, status: "LIVE" },
+  { old: "Fixing the Porsche 911 parcel shelf", newTitle: "How to Restore a Porsche 911 Parcel Shelf - Interior Fix", baselineViews: 101, baselineCtr: 1.52, status: "LIVE" },
+  { old: "Porsche 911 Restoration Begins! #porscherestoration", newTitle: "Starting My 1973 Porsche 911T Restoration - What I Found Inside", baselineViews: 183, baselineCtr: 2.68, status: "LIVE" },
+  { old: "Porsche 911 LIVE Update - Project Janis", newTitle: "LIVE: 1973 Porsche 911T Restoration Update - Q&A Build Session", baselineViews: 131, baselineCtr: 2.06, status: "LIVE" },
+  { old: "PORSCHE KARDEX, COA, PPS. WHAT IS IT?! #porsche911", newTitle: "Porsche Kardex Explained: How to Verify Your 911 Is Authentic", baselineViews: 135, baselineCtr: 0.97, status: "LIVE" },
+  { old: "ChatGPT on our Porsche - Original vs Modern", newTitle: "Should You Modernize a Classic Porsche 911? Purist vs Builder", baselineViews: 89, baselineCtr: 0.66, status: "LIVE" },
+  { old: "Porsche 911 Project Update", newTitle: "1973 Porsche 911T: Rebuilding the MFI Fuel Injection System", baselineViews: 38, baselineCtr: 0.95, status: "LIVE" },
+  { old: "Painting Porsche Parts", newTitle: "How I Painted My Porsche 911 Trim at Home - DIY Restoration", baselineViews: 14, baselineCtr: 0.23, status: "LIVE" },
+  { old: "Porsche Delivery Day! #porsche911", newTitle: "Picking Up Our 1973 Porsche 911T - $30K Project Car Reveal", baselineViews: 29, baselineCtr: 1.59, status: "LIVE" },
+  { old: "WE BOUGHT A PORSCHE!! #porsche #porscherestoration", newTitle: "We Bought a 1973 Porsche 911T for $30K - Full Walk-Around", baselineViews: 19, baselineCtr: 1.07, status: "LIVE" },
+  { old: "Stuttgart Sunday - Porsche 911 Project", newTitle: "Sunday Garage Session: Porsche 911T Suspension & Interior Work", baselineViews: 22, baselineCtr: 0.31, status: "LIVE" },
+];
+
+// ── AFFILIATE OPTIMIZER DATA ──
+const affiliateVideos = [
+  { title: "Replacing the Battery - VW Golf MK7", views: 26432, hasLinks: true, products: [
+    { name: "VW/Audi OEM Battery (H6/Group 48)", category: "Parts", estClicks: "150-250/mo", estRev: "$8-15/mo" },
+    { name: "Battery Terminal Cleaner Spray", category: "Tools", estClicks: "80-120/mo", estRev: "$2-4/mo" },
+    { name: "CTEK Battery Charger/Maintainer", category: "Tools", estClicks: "60-100/mo", estRev: "$3-6/mo" },
+  ]},
+  { title: "B&O Speakers Front Door - S5/RS5", views: 22045, hasLinks: true, products: [
+    { name: "Eton B100XN Audi Speaker Upgrade", category: "Audio", estClicks: "100-200/mo", estRev: "$15-30/mo" },
+    { name: "RS Acoustics Speaker Kit for Audi", category: "Audio", estClicks: "80-150/mo", estRev: "$12-25/mo" },
+    { name: "Trim Removal Tool Set (non-marring)", category: "Tools", estClicks: "60-90/mo", estRev: "$2-4/mo" },
+  ]},
+  { title: "AutoLED Tail Lights - Golf MK7", views: 16790, hasLinks: true, products: [
+    { name: "deAutoLED MK7 Golf Tail Light Kit", category: "Lighting", estClicks: "120-180/mo", estRev: "$10-18/mo" },
+    { name: "deAutoLED Reverse Light Bulbs", category: "Lighting", estClicks: "60-80/mo", estRev: "$3-5/mo" },
+  ]},
+  { title: "B&O Speakers Front Center - S5/RS5", views: 15389, hasLinks: true, products: [
+    { name: "Eton B100XW2 Center Speaker", category: "Audio", estClicks: "80-150/mo", estRev: "$12-22/mo" },
+    { name: "RS Acoustics Center Speaker Kit", category: "Audio", estClicks: "60-100/mo", estRev: "$8-15/mo" },
+  ]},
+  { title: "MQB Jack Pad Kit Install", views: 9849, hasLinks: true, products: [
+    { name: "MQB Jack Pad Adapter Kit", category: "Tools", estClicks: "80-120/mo", estRev: "$4-8/mo" },
+    { name: "Pittsburgh 3-Ton Floor Jack", category: "Tools", estClicks: "40-60/mo", estRev: "$5-10/mo" },
+    { name: "Jack Stand Set (3-Ton)", category: "Tools", estClicks: "30-50/mo", estRev: "$3-6/mo" },
+  ]},
+  { title: "CarbnLab RS Grill - B9 S5", views: 8745, hasLinks: true, products: [
+    { name: "CarbnLab RS Style Grill (B9 S5/A5)", category: "Exterior", estClicks: "60-100/mo", estRev: "$8-15/mo" },
+    { name: "Trim Clip Assortment Kit (Audi/VW)", category: "Tools", estClicks: "30-50/mo", estRev: "$2-3/mo" },
+  ]},
+  { title: "MK8 Golf Center Speaker Replacement", views: 8019, hasLinks: true, products: [
+    { name: "RS Acoustics MK8 Center Speaker", category: "Audio", estClicks: "60-100/mo", estRev: "$8-15/mo" },
+    { name: "Trim Pry Tool Set", category: "Tools", estClicks: "30-50/mo", estRev: "$1-3/mo" },
+  ]},
+  { title: "MK7R Intake - Integrated Engineering", views: 7991, hasLinks: true, products: [
+    { name: "IE Cold Air Intake (MQB)", category: "Performance", estClicks: "50-80/mo", estRev: "$8-15/mo" },
+    { name: "K&N Air Filter Cleaning Kit", category: "Maintenance", estClicks: "30-50/mo", estRev: "$2-4/mo" },
+  ]},
+  { title: "SQ7 700HP APR Stage 1", views: 7781, hasLinks: true, products: [
+    { name: "APR ECU Tune (SQ7 4.0T)", category: "Performance", estClicks: "40-60/mo", estRev: "$10-20/mo" },
+    { name: "Cobb AccessPort (if applicable)", category: "Performance", estClicks: "30-50/mo", estRev: "$8-15/mo" },
+  ]},
+  { title: "VW Golf R Misfire FIXED - APR Coils", views: 7274, hasLinks: true, products: [
+    { name: "APR Ignition Coil Pack Set (EA888)", category: "Performance", estClicks: "80-120/mo", estRev: "$6-12/mo" },
+    { name: "NGK Spark Plugs (RS7 spec, gapped)", category: "Parts", estClicks: "60-90/mo", estRev: "$3-6/mo" },
+    { name: "Spark Plug Gap Tool", category: "Tools", estClicks: "40-60/mo", estRev: "$1-2/mo" },
+  ]},
+  { title: "10\" JL Stealth Sub - Audi S5", views: 6895, hasLinks: true, products: [
+    { name: "JL Audio Stealthbox (Audi A5/S5)", category: "Audio", estClicks: "40-70/mo", estRev: "$15-30/mo" },
+    { name: "JL Audio JX500/1D Amp", category: "Audio", estClicks: "30-50/mo", estRev: "$8-15/mo" },
+  ]},
+  { title: "aerofabb Spoiler Extension - MK7 Golf R", views: 6606, hasLinks: true, products: [
+    { name: "aerofabb V2 Spoiler Extension (MK7)", category: "Exterior", estClicks: "50-80/mo", estRev: "$5-10/mo" },
+    { name: "3M Double-Sided Tape (Automotive)", category: "Tools", estClicks: "30-50/mo", estRev: "$1-2/mo" },
+  ]},
+  { title: "Do you even NEED an Intercooler? MK7R", views: 6186, hasLinks: true, products: [
+    { name: "034 Motorsport Intercooler (MQB)", category: "Performance", estClicks: "40-70/mo", estRev: "$8-15/mo" },
+    { name: "Silicone Coupler/Clamp Kit", category: "Parts", estClicks: "20-30/mo", estRev: "$2-4/mo" },
+  ]},
+  { title: "VW/Audi MQB HPFP Upgrade - Autotech", views: 5606, hasLinks: true, products: [
+    { name: "Autotech HPFP Internals (MQB)", category: "Performance", estClicks: "50-70/mo", estRev: "$6-10/mo" },
+  ]},
+  { title: "Audi B9 S4/S5/SQ5 Staged Build Guide", views: 5353, hasLinks: true, products: [
+    { name: "034 Motorsport Stage 1 Bundle", category: "Performance", estClicks: "30-50/mo", estRev: "$8-15/mo" },
+    { name: "IE Cold Air Intake (B9)", category: "Performance", estClicks: "25-40/mo", estRev: "$5-10/mo" },
+  ]},
+];
+
+// ── MILESTONES ──
+const milestones = [
+  { period: "Week 1 ✅", milestone: "Porsche titles live (15 retitled March 11). 166 titles optimized. 87 descriptions with affiliate links written. Dashboard built.", revenue: "Baseline set" },
+  { period: "Week 1 ✅", milestone: "Affiliate links added to top 20 videos. Description template deployed. Partners page CTAs added. vaguh.com Project Janis page updated. Blog post drafted.", revenue: "$189/mo" },
+  { period: "Week 2", milestone: "Monitor Porsche CTR changes, publish remaining descriptions to YouTube, Descript setup", revenue: "$200-250/mo" },
+  { period: "Month 1", milestone: "8+ new videos, Porsche series restarted, 034 Alltrack filming", revenue: "$200-400/mo" },
+  { period: "Month 2", milestone: "034 series releasing, 10K subs, trend reversed. Evaluate TubeBuddy Legend for A/B testing.", revenue: "$400-700/mo" },
+  { period: "Month 3", milestone: "034 complete, 2nd sponsor pitched, affiliate revenue climbing", revenue: "$700-1,200/mo" },
+  { period: "Month 6", milestone: "2x/week cadence, multiple sponsors, 15K+ subs", revenue: "$1,500-2,500/mo" },
+  { period: "Year 1", milestone: "Multi-channel, 25K+ subs, team of 1-2", revenue: "$3,000-5,000/mo" },
+];
+
+// ── DETAILED ACTION TASKS ──
+const actionTasks = [
+  {
+    id: 1, title: "Retitle All Porsche Videos", time: "1 hour", impact: "3-5x CTR boost on 15 videos",
+    priority: "CRITICAL", category: "SEO", status: "done",
+    instructions: "Go to YouTube Studio > Content. Find each Porsche video listed in the 'Porsche Retitle' tab below. Click the pencil icon, replace the title with the new optimized title. Do NOT change the video URL or thumbnail yet — just titles first. After retitling, check back in 7 days for CTR changes in analytics.",
+    subtasks: ["Open YouTube Studio > Content", "Filter by 'Porsche' in search", "Replace each title from the retitle list below", "Verify no broken characters or truncation (keep under 70 chars)", "Check CTR improvement after 7 days"]
+  },
+  {
+    id: 2, title: "Add Affiliate Links to Top 20 Videos", time: "2 hours", impact: "$200-400/mo passive income",
+    priority: "CRITICAL", category: "Revenue", status: "done",
+    instructions: "Use the Affiliate Optimizer tab to see exactly which products to link for each video. For each video: go to YouTube Studio > Content > click the video > Description. Add the affiliate links section at the TOP of the description (before any other text). Format: a clean list with product names as link text. Include a disclosure line.",
+    subtasks: ["Open Amazon Associates dashboard", "Search each recommended product", "Generate affiliate links (use SiteStripe or Product Links)", "Paste into video descriptions using the template", "Add FTC disclosure: 'Some links are affiliate links'", "Track clicks in Amazon Associates after 7 days"]
+  },
+  {
+    id: 3, title: "Create Optimized Description Template", time: "30 min", impact: "Boosts search + affiliate revenue on every video",
+    priority: "HIGH", category: "SEO", status: "done",
+    instructions: "Create a reusable description template and save it in YouTube Studio defaults. Every description should follow this structure for maximum search visibility and affiliate revenue.",
+    subtasks: ["Line 1-2: Hook sentence with main keyword", "Line 3-5: Secondary keywords naturally woven in", "'Products Used in This Video:' section with affiliate links", "'Timestamps:' section with chapters (YouTube rewards this)", "'Follow VAGUH:' section with Instagram, TikTok, website", "Disclosure: 'Some links are affiliate links'", "Save as default in YouTube Studio > Settings > Upload Defaults"]
+  },
+  {
+    id: 10, title: "Film 034 Motorsport Alltrack Series (3 Videos)", time: "8-12 hrs over 2-3 weekends", impact: "Sponsor content + search traffic",
+    priority: "CRITICAL", category: "Content", status: "todo",
+    instructions: "Your first sponsored series. Nick from 034 agreed to terms. Plan 3 videos as a story arc.",
+    subtasks: ["Video 1: 'Building a 300HP VW Alltrack with 034' - Intro, base dyno, tune, post-tune dyno", "Video 2: '034 Bolt-On Blitz: Intercooler, Intake, RSB, Control Arms' - All hardware", "Video 3: 'Track Day: Is a 300HP Alltrack Actually Fast?' - Timed runs, before vs after", "Send rough cut to Nick for approval", "Add 034 affiliate links to all 3 descriptions", "Publish 1 week apart (Tue/Thu) for series momentum"]
+  },
+  {
+    id: 7, title: "Publish 1 New Porsche Video from Raw Footage", time: "3 hours", impact: "Restarts algorithm for Porsche series",
+    priority: "HIGH", category: "Content", status: "todo",
+    instructions: "Pick the most visually dramatic raw clip (stripping, first start, before/after reveal) and edit a 10-15 min video. Use new title format.",
+    subtasks: ["Review raw Porsche footage — pick most dramatic 15 min", "Edit: aim for 10-15 min runtime", "Title: '1973 Porsche 911T: [Specific Action] - [Emotional Hook]'", "Add chapters/timestamps in description", "Add affiliate links for tools/parts visible in video", "Custom thumbnail: close-up + bold text overlay", "Publish Tuesday or Thursday 2-5pm PST"]
+  },
+  {
+    id: 6, title: "Create Playlists for Each Content Pillar", time: "30 min", impact: "20-40% more watch time",
+    priority: "HIGH", category: "SEO", status: "todo",
+    instructions: "Playlists keep viewers watching. YouTube counts playlist views in Suggested Videos algorithm. Create one per pillar.",
+    subtasks: ["'Audi S5 Build Series - Stage 1 to Stage 3' (25 videos)", "'B&O Speaker Upgrade Guide - Complete Audi Audio Build' (7 videos)", "'VW Golf MK7 How-To & DIY Guides' (12 videos)", "'1973 Porsche 911T Restoration - Project Janis' (all Porsche)", "'Audi SQ7 Build - 700HP Daily Driver' (4+ videos)", "'034 Motorsport Builds & Reviews' (all 034 content)", "Add playlist links to each video's end screen"]
+  },
+  {
+    id: 5, title: "Sign Up for Descript ($24/mo)", time: "30 min", impact: "60-70% faster editing, unlocks Shorts repurposing",
+    priority: "HIGH", category: "Tools", status: "todo",
+    instructions: "Descript lets you edit video like a Word doc. Delete filler words, silence, and bad takes by highlighting text. Auto-generates captions and creates Shorts clips from long-form.",
+    subtasks: ["Sign up at descript.com (Hobbyist plan $24/mo)", "Import one existing raw Porsche clip as test", "Try 'remove filler words' feature", "Export a 60-second clip as a Short teaser", "Set up brand kit (VAGUH logo, colors) in Descript"]
+  },
+  {
+    id: 8, title: "Optimize Thumbnails for Top 10 Videos", time: "2 hours", impact: "1-3% CTR boost = thousands more views",
+    priority: "MEDIUM", category: "SEO", status: "todo",
+    instructions: "Top 10 videos get impressions but CTR can improve. New thumbnails: close-up shots, 3-4 bold words max, high contrast.",
+    subtasks: ["Open Canva > YouTube Thumbnail (1280x720)", "For each top 10: create new thumbnail with bold text + close-up", "Upload as new thumbnail in YouTube Studio", "Check CTR change after 14 days", "Keep winner, revert if CTR drops"]
+  },
+  {
+    id: 9, title: "Set Up FCP Euro & ECS Tuning Affiliates", time: "45 min", impact: "Higher commissions than Amazon on car parts",
+    priority: "MEDIUM", category: "Revenue", status: "todo",
+    instructions: "Amazon commissions on auto parts are 1-3%. FCP Euro and ECS Tuning have creator programs with higher payouts.",
+    subtasks: ["Apply at fcpeuro.com/affiliates (mention VAGUH + 9K subs)", "Apply at ecstuning.com affiliate program", "Contact 034 Motorsport (Nick) about affiliate code", "Replace Amazon links for car parts with FCP/ECS where possible", "Keep Amazon for tools and non-car products"]
+  },
+  {
+    id: 4, title: "Evaluate TubeBuddy Legend (A/B Testing)", time: "15 min", impact: "A/B test thumbnails & titles at scale",
+    priority: "MED", category: "Tools", status: "deferred",
+    instructions: "Revisit at Month 2 milestone (~10K subs, 2+ uploads/week). TubeBuddy Legend ($26/mo) adds A/B testing for titles, thumbnails, descriptions, and tags — the one feature we can't replicate. YouTube's free Test & Compare covers thumbnail testing for now. Not worth the spend until upload cadence and revenue justify it.",
+    subtasks: ["Milestone trigger: 10K subs OR $400+/mo revenue OR 2+/week uploads", "Re-evaluate vs YouTube's built-in Test & Compare", "If subscribing: use Legend plan for A/B title + thumbnail testing", "Focus tests on Porsche series and new 034 content first"]
+  },
+];
+
+
+const amazonData = {
+  storeId: "vaguh-20",
+  lastUpdated: "2026-03-10",
+  summary: { clicks: 252, orders: 10, shipped: 11, returned: 1, orderedRev: 646.18, totalRev: 638.17, earnings: 26.38, conversion: 3.97 },
+  payments: [
+    { date: "Feb 18, 2026", amount: 23.40, detail: "Dec ($14.08) + Nov ($9.32)" },
+    { date: "Dec 18, 2025", amount: 16.84, detail: "Oct 2025" },
+    { date: "Nov 18, 2025", amount: 32.48, detail: "Sep 2025" },
+    { date: "Sep 18, 2025", amount: 16.76, detail: "Jul-Aug 2025" },
+  ],
+  daily: [
+    { d: "Mar 10", c: 13, o: 0, e: 0 }, { d: "Mar 09", c: 12, o: 0, e: 3.20 },
+    { d: "Mar 08", c: 3, o: 1, e: 3.51 }, { d: "Mar 07", c: 12, o: 3, e: 8.00 },
+    { d: "Mar 06", c: 3, o: 0, e: 0 }, { d: "Mar 05", c: 8, o: 0, e: -1.30 },
+    { d: "Mar 04", c: 6, o: 0, e: 3.54 }, { d: "Mar 03", c: 8, o: 2, e: 4.16 },
+    { d: "Mar 02", c: 5, o: 0, e: 2.55 }, { d: "Mar 01", c: 4, o: 2, e: 0 },
+    { d: "Feb 28", c: 4, o: 0, e: 0 }, { d: "Feb 27", c: 6, o: 0, e: 0 },
+    { d: "Feb 26", c: 1, o: 0, e: 0.81 }, { d: "Feb 25", c: 8, o: 0, e: 0 },
+    { d: "Feb 24", c: 20, o: 1, e: 0 }, { d: "Feb 23", c: 11, o: 0, e: 0 },
+    { d: "Feb 22", c: 14, o: 0, e: 0 }, { d: "Feb 21", c: 14, o: 0, e: 0 },
+    { d: "Feb 20", c: 4, o: 0, e: 0 }, { d: "Feb 19", c: 8, o: 1, e: 1.07 },
+    { d: "Feb 18", c: 9, o: 0, e: 0 }, { d: "Feb 17", c: 14, o: 0, e: 0 },
+    { d: "Feb 16", c: 8, o: 0, e: 0 }, { d: "Feb 15", c: 11, o: 0, e: 0 },
+    { d: "Feb 14", c: 9, o: 0, e: 0 },
+  ],
+  monthlyEarnings: [
+    { m: "Mar 26*", e: 23.66 }, { m: "Jan 26", e: -1.17 }, { m: "Dec 25", e: 14.08 },
+    { m: "Nov 25", e: 9.32 }, { m: "Oct 25", e: 16.84 }, { m: "Sep 25", e: 32.48 },
+  ],
+};
+
+const channelMetrics = {
+  subscribers: 9045,
+  totalViews: 2100000,
+  monthlyViews: 45000,
+  avgViewsTop20: 55000,
+  avg30dViews: 4500,
+  watchHours: 17044,
+  avgViewPct: 22.4,
+  avgRPM: 227,
+  topRPM: 1008,
+  affiliateConversion: 3.97,
+  affiliateRevenue30d: 638.17,
+  niche: "Automotive / VW-Audi Enthusiast",
+  demographics: { male: 92, age2534: 38, age3544: 27, usa: 62 },
+};
+
+// ── TABS ──
+const tabs = ["Action Plan", "Porsche Retitle", "Affiliate Optimizer", "Affiliate Revenue", "Sponsorship Kit", "TikTok Strategy", "Instagram Strategy", "Facebook Strategy", "Website & Merch", "YT Overview", "YT Content", "YT Traffic & Audience", "YT Revenue"];
+
+// ═══════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════
+function VAGUHPerformanceTuningCenter() {
+  const [activeTab, setActiveTab] = useState("Action Plan");
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshMsg, setRefreshMsg] = useState("");
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setRefreshMsg("Pulling YouTube data...");
+    const es = new EventSource("/refresh");
+    es.onmessage = (e) => {
+      const d = JSON.parse(e.data);
+      if (d.message) setRefreshMsg(d.message);
+      if (d.step === "done") {
+        es.close();
+        if (d.status === "success") {
+          setRefreshMsg("Done! Reloading...");
+          setTimeout(() => window.location.reload(), 1200);
+        } else {
+          setRefreshMsg("Error: " + (d.message || "refresh failed"));
+          setTimeout(() => { setRefreshing(false); setRefreshMsg(""); }, 4000);
+        }
+      }
+    };
+    es.onerror = () => {
+      es.close();
+      setRefreshMsg("Server not running. Start with: python vaguh_server.py");
+      setTimeout(() => { setRefreshing(false); setRefreshMsg(""); }, 5000);
+    };
+  };
+
+  return (
+    <div style={{
+      minHeight: "100vh",
+      background: C.carbon,
+      color: C.text,
+      fontFamily: "'Oxanium', 'Inter', -apple-system, sans-serif",
+      padding: 0,
+    }}>
+      {/* Audi F1 tricolor accent stripe — red / white / black */}
+      <div style={{ position: "fixed", top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${C.red} 0%, ${C.red} 33%, #f0ede8 33%, #f0ede8 66%, #000000 66%)`, zIndex: 10 }} />
+
+      {/* Subtle warm grain texture */}
+      <div style={{ position: "fixed", inset: 0, backgroundImage: `radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px)`, backgroundSize: "24px 24px", pointerEvents: "none", zIndex: 0 }} />
+
+      <div style={{ position: "relative", zIndex: 1, padding: "20px 24px", paddingTop: 28 }}>
+
+        {/* ── HEADER ── */}
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          marginBottom: 8, paddingBottom: 20,
+          borderBottom: `1px solid ${C.cardBorder}`,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            {/* VAGUH Logo — actual brand logo from vaguh.com */}
+            <img src="data:image/png;base64,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" alt="VAGUH" style={{ height: 52, objectFit: "contain", filter: "invert(1)" }} />
+            <div style={{ borderLeft: `1px solid ${C.cardBorder}`, paddingLeft: 16, marginLeft: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 5, color: C.titanium, textTransform: "uppercase" }}>Performance Tuning Center</div>
+              <div style={{ fontSize: 10, color: C.muted, marginTop: 3, letterSpacing: 1 }}>GROWTH ANALYTICS — MARCH 2026</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ background: C.greenDim, color: C.green, padding: "5px 14px", borderRadius: 3, fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>Monetized</span>
+            <span style={{ background: C.redDim, color: C.red, padding: "5px 14px", borderRadius: 3, fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase" }}>Declining</span>
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              style={{
+                background: refreshing ? "rgba(255,255,255,0.05)" : C.red,
+                color: refreshing ? C.muted : "#ffffff",
+                border: "none", borderRadius: 24, padding: "7px 18px",
+                fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase",
+                cursor: refreshing ? "default" : "pointer",
+                marginLeft: 8, transition: "all 0.2s",
+                boxShadow: "none",
+              }}
+            >
+              {refreshing ? "⟳ Refreshing..." : "⟳ Pull Live Data"}
+            </button>
+            {refreshMsg && (
+              <span style={{ fontSize: 10, color: C.titanium, marginLeft: 4, fontStyle: "italic" }}>{refreshMsg}</span>
+            )}
+          </div>
+        </div>
+
+        {/* ── NAV TABS — geometric angular style with hidden scrollbar ── */}
+        <div
+          onWheel={(e) => { e.currentTarget.scrollLeft += e.deltaY; e.preventDefault(); }}
+          className="tab-scroll"
+          style={{
+            display: "flex", gap: 1, marginBottom: 28, marginTop: 20,
+            overflowX: "auto", overflowY: "hidden",
+            WebkitOverflowScrolling: "touch",
+            scrollbarWidth: "none",        // Firefox
+            msOverflowStyle: "none",       // IE/Edge
+            paddingBottom: 2,
+          }}>
+          {tabs.map(t => (
+            <button key={t} onClick={() => setActiveTab(t)} style={{
+              flex: "0 0 auto", padding: "11px 18px", border: "none", cursor: "pointer",
+              fontSize: 11, fontWeight: 700, transition: "all 0.15s", whiteSpace: "nowrap",
+              letterSpacing: 1.5, textTransform: "uppercase",
+              background: "transparent",
+              color: activeTab === t ? C.white : C.muted,
+              borderRadius: 0,
+              borderBottom: activeTab === t ? `3px solid ${C.red}` : "3px solid transparent",
+            }}>{t}</button>
+          ))}
+        </div>
+
+        {/* ── TAB CONTENT ── */}
+        {activeTab === "Action Plan" && <ActionPlanTab />}
+        {activeTab === "Porsche Retitle" && <PorscheRetitleTab />}
+        {activeTab === "Affiliate Optimizer" && <AffiliateTab />}
+        {activeTab === "Affiliate Revenue" && <AffiliateRevenueTab />}
+        {activeTab === "Sponsorship Kit" && <SponsorshipKitTab />}
+        {activeTab === "TikTok Strategy" && <TikTokStrategyTab />}
+        {activeTab === "Instagram Strategy" && <InstagramStrategyTab />}
+        {activeTab === "Facebook Strategy" && <FacebookStrategyTab />}
+        {activeTab === "Website & Merch" && <WebsiteMerchTab />}
+        {activeTab === "YT Overview" && <OverviewTab />}
+        {activeTab === "YT Content" && <ContentTab />}
+        {activeTab === "YT Traffic & Audience" && <TrafficTab />}
+        {activeTab === "YT Revenue" && <RevenueTab />}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 1: ACTION PLAN (HOME)
+// ═══════════════════════════════════════════════════════
+function ActionPlanTab() {
+  const [tasks, setTasks] = useState(actionTasks);
+  const [expanded, setExpanded] = useState(null);
+  const toggle = (id) => setTasks(tasks.map(t => t.id === id ? { ...t, status: t.status === "done" ? "todo" : "done" } : t));
+  const done = tasks.filter(t => t.status === "done").length;
+
+  return (
+    <div>
+      {/* Progress Header */}
+      <div style={{ ...card, marginBottom: 20, borderLeft: `3px solid ${C.red}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: C.white, letterSpacing: 2, textTransform: "uppercase" }}>Growth Playbook</h3>
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: C.muted, letterSpacing: 0.5 }}>Click any task to mark complete. Expand for step-by-step instructions.</p>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <span style={{ fontSize: 28, fontWeight: 900, color: C.red }}>{done}/{tasks.length}</span>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 2, textTransform: "uppercase" }}>Complete</div>
+          </div>
+        </div>
+        <div style={{ height: 4, borderRadius: 0, background: "rgba(255, 255, 255, 0.06)", overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${(done / tasks.length) * 100}%`, background: `linear-gradient(90deg, ${C.red} 0%, #f0ede8 60%, #000000 100%)`, transition: "width 0.3s" }} />
+        </div>
+      </div>
+
+      {/* KPI Strip */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6, marginBottom: 20 }}>
+        {kpis.map((k, i) => (
+          <div key={i} style={{ ...cardInner, textAlign: "center", padding: 12 }}>
+            <div style={{ fontSize: 18 }}>{k.icon}</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: k.color, marginTop: 2 }}>{k.value}</div>
+            <div style={{ fontSize: 8, color: C.muted, marginTop: 2, letterSpacing: 1.5, textTransform: "uppercase" }}>{k.label}</div>
+            <div style={{ fontSize: 9, color: k.down ? C.red : C.green, fontWeight: 700, marginTop: 2 }}>{k.trend}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Task Cards */}
+      <div style={{ display: "grid", gap: 6, marginBottom: 24 }}>
+        {tasks.map((t) => (
+          <div key={t.id} style={{
+            ...cardInner, cursor: "pointer", transition: "all 0.15s",
+            borderLeft: `3px solid ${t.status === "done" ? C.green : t.priority === "CRITICAL" ? C.red : t.priority === "HIGH" ? C.amber : C.titaniumDark}`,
+            opacity: t.status === "done" ? 0.4 : 1,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }} onClick={() => toggle(t.id)}>
+              <div style={{
+                width: 22, height: 22, borderRadius: 3, flexShrink: 0,
+                border: `2px solid ${t.status === "done" ? C.green : "rgba(255, 255, 255, 0.15)"}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                background: t.status === "done" ? C.green : "transparent",
+              }}>
+                {t.status === "done" && <span style={{ color: C.carbon, fontSize: 12, fontWeight: 900 }}>✓</span>}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: C.white, textDecoration: t.status === "done" ? "line-through" : "none" }}>{t.title}</span>
+                  <span style={{
+                    fontSize: 9, fontWeight: 800, padding: "2px 8px", borderRadius: 2, letterSpacing: 1,
+                    background: t.priority === "CRITICAL" ? C.redDim : t.priority === "HIGH" ? C.amberDim : C.titaniumDim,
+                    color: t.priority === "CRITICAL" ? C.red : t.priority === "HIGH" ? C.amber : C.titanium,
+                  }}>{t.priority}</span>
+                  <span style={{ fontSize: 9, background: "rgba(255, 255, 255, 0.05)", padding: "2px 6px", borderRadius: 2, color: C.muted, letterSpacing: 0.5 }}>{t.category}</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 3 }}>{t.time} · Impact: <strong style={{ color: C.green }}>{t.impact}</strong></div>
+              </div>
+              <button onClick={(e) => { e.stopPropagation(); setExpanded(expanded === t.id ? null : t.id); }} style={{
+                background: expanded === t.id ? C.red : "rgba(255,255,255,0.04)", border: `1px solid ${expanded === t.id ? C.red : C.cardBorder}`, borderRadius: 3,
+                color: C.white, padding: "6px 12px", cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase",
+              }}>{expanded === t.id ? "Hide" : "Steps"}</button>
+            </div>
+            {expanded === t.id && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.cardBorder}` }}>
+                <p style={{ fontSize: 12, color: C.text, lineHeight: 1.7, margin: "0 0 12px" }}>{t.instructions}</p>
+                <div style={{ display: "grid", gap: 6 }}>
+                  {t.subtasks.map((s, i) => (
+                    <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: 12 }}>
+                      <span style={{ color: C.red, fontWeight: 800, flexShrink: 0, width: 18 }}>{i + 1}.</span>
+                      <span style={{ color: C.text, lineHeight: 1.5 }}>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Milestones */}
+      <div style={{ ...card, borderLeft: `3px solid ${C.titanium}` }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 13, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>Growth Milestones</h3>
+        {milestones.map((m, i) => (
+          <div key={i} style={{ display: "flex", gap: 16, marginBottom: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", flexShrink: 0 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 2, background: i === 0 ? C.red : "rgba(255, 255, 255, 0.1)", border: `2px solid ${i === 0 ? C.red : C.cardBorder}` }} />
+              {i < milestones.length - 1 && <div style={{ width: 2, height: 34, background: C.cardBorder }} />}
+            </div>
+            <div style={{ flex: 1, display: "flex", justifyContent: "space-between" }}>
+              <div><span style={{ fontWeight: 700, fontSize: 13, color: C.white }}>{m.period}</span><div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{m.milestone}</div></div>
+              <span style={{ fontSize: 13, fontWeight: 800, color: C.green }}>{m.revenue}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Revenue Projection Calculator */}
+      <div style={{ ...card, borderLeft: `3px solid ${C.gold}`, marginTop: 20 }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 13, fontWeight: 800, color: C.gold, letterSpacing: 2, textTransform: "uppercase" }}>Revenue Projection Calculator</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          <div style={{ ...cardInner }}>
+            <div style={{ fontSize: 10, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Current Monthly</div>
+            <div style={{ display: "grid", gap: 6, fontSize: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>AdSense</span><span style={{ color: C.green, fontWeight: 700 }}>$163</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>Amazon Affiliates</span><span style={{ color: C.green, fontWeight: 700 }}>$26</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>Sponsorships</span><span style={{ color: C.muted, fontWeight: 700 }}>$0</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>Merch</span><span style={{ color: C.muted, fontWeight: 700 }}>$0</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${C.cardBorder}`, paddingTop: 6, marginTop: 4 }}><span style={{ color: C.white, fontWeight: 700 }}>Total</span><span style={{ color: C.gold, fontWeight: 900, fontSize: 16 }}>$189/mo</span></div>
+            </div>
+          </div>
+          <div style={{ ...cardInner }}>
+            <div style={{ fontSize: 10, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>3-Month Target</div>
+            <div style={{ display: "grid", gap: 6, fontSize: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>AdSense (2x/wk uploads)</span><span style={{ color: C.green, fontWeight: 700 }}>$300</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>Affiliates (FCP + Amazon)</span><span style={{ color: C.green, fontWeight: 700 }}>$150</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>034 Sponsorship</span><span style={{ color: C.green, fontWeight: 700 }}>$200</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>Merch (Tier 1)</span><span style={{ color: C.green, fontWeight: 700 }}>$50</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${C.cardBorder}`, paddingTop: 6, marginTop: 4 }}><span style={{ color: C.white, fontWeight: 700 }}>Target</span><span style={{ color: C.gold, fontWeight: 900, fontSize: 16 }}>$700/mo</span></div>
+            </div>
+          </div>
+          <div style={{ ...cardInner }}>
+            <div style={{ fontSize: 10, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>12-Month Goal</div>
+            <div style={{ display: "grid", gap: 6, fontSize: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>AdSense (25K subs)</span><span style={{ color: C.green, fontWeight: 700 }}>$800</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>Affiliates (multi-program)</span><span style={{ color: C.green, fontWeight: 700 }}>$500</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>Sponsors (2-3 active)</span><span style={{ color: C.green, fontWeight: 700 }}>$1,500</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: C.text }}>Merch (Tier 1-3)</span><span style={{ color: C.green, fontWeight: 700 }}>$400</span></div>
+              <div style={{ display: "flex", justifyContent: "space-between", borderTop: `1px solid ${C.cardBorder}`, paddingTop: 6, marginTop: 4 }}><span style={{ color: C.white, fontWeight: 700 }}>Goal</span><span style={{ color: C.gold, fontWeight: 900, fontSize: 16 }}>$3,200/mo</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 2: PORSCHE RETITLE
+// ═══════════════════════════════════════════════════════
+function PorscheRetitleTab() {
+  // Build chart data — short labels for readability
+  const shortLabels = porscheRetitles.map((v, i) => {
+    const words = v.newTitle.split(" ").slice(0, 3).join(" ");
+    return words.length > 18 ? words.slice(0, 18) + "…" : words;
+  });
+  const ctrChartData = porscheRetitles.map((v, i) => ({
+    name: "V" + (i + 1),
+    label: shortLabels[i],
+    baseline: v.baselineCtr,
+    current: v.currentCtr ?? null,
+    delta: v.currentCtr != null ? +(v.currentCtr - v.baselineCtr).toFixed(2) : null,
+  }));
+  const viewsChartData = porscheRetitles.map((v, i) => ({
+    name: "V" + (i + 1),
+    label: shortLabels[i],
+    baseline: v.baselineViews,
+    current: v.currentViews ?? null,
+    delta: v.currentViews != null ? v.currentViews - v.baselineViews : null,
+  }));
+  const avgBaselineCtr = +(porscheRetitles.reduce((s, v) => s + v.baselineCtr, 0) / porscheRetitles.length).toFixed(2);
+  const totalBaselineViews = porscheRetitles.reduce((s, v) => s + v.baselineViews, 0);
+  const hasCurrentData = porscheRetitles.some(v => v.currentCtr != null);
+
+  const CustomCtrTooltip = ({ active, payload }) => {
+    if (!active || !payload || !payload.length) return null;
+    const d = payload[0].payload;
+    return (
+      <div style={{ background: "#2e2e2e", boxShadow: "0 4px 12px rgba(0,0,0,0.4)", border: `1px solid ${C.cardBorder}`, borderRadius: 4, padding: "8px 12px", fontSize: 11 }}>
+        <div style={{ color: C.titanium, fontWeight: 700, marginBottom: 4 }}>{d.label}</div>
+        <div style={{ color: C.red }}>Baseline CTR: {d.baseline}%</div>
+        {d.current != null && <div style={{ color: C.green }}>Current CTR: {d.current}%</div>}
+        {d.delta != null && <div style={{ color: d.delta >= 0 ? C.green : C.red, fontWeight: 700 }}>{d.delta >= 0 ? "+" : ""}{d.delta}%</div>}
+      </div>
+    );
+  };
+  const CustomViewsTooltip = ({ active, payload }) => {
+    if (!active || !payload || !payload.length) return null;
+    const d = payload[0].payload;
+    return (
+      <div style={{ background: "#2e2e2e", boxShadow: "0 4px 12px rgba(0,0,0,0.4)", border: `1px solid ${C.cardBorder}`, borderRadius: 4, padding: "8px 12px", fontSize: 11 }}>
+        <div style={{ color: C.titanium, fontWeight: 700, marginBottom: 4 }}>{d.label}</div>
+        <div style={{ color: C.red }}>Baseline: {d.baseline.toLocaleString()} views</div>
+        {d.current != null && <div style={{ color: C.green }}>Current: {d.current.toLocaleString()} views</div>}
+        {d.delta != null && <div style={{ color: d.delta >= 0 ? C.green : C.red, fontWeight: 700 }}>{d.delta >= 0 ? "+" : ""}{d.delta.toLocaleString()}</div>}
+      </div>
+    );
+  };
+
+  return (
+    <div>
+      {/* Header card */}
+      <div style={{ ...card, marginBottom: 20, borderLeft: `3px solid ${C.green}` }}>
+        <h3 style={{ margin: "0 0 8px", fontSize: 15, fontWeight: 800, color: C.green, letterSpacing: 1, textTransform: "uppercase" }}>Porsche 911 Title Overhaul — {hasCurrentData ? "Performance Tracker" : "Week 1 Baseline"}</h3>
+        <p style={{ margin: 0, fontSize: 12, color: C.text, lineHeight: 1.7 }}>
+          All <strong style={{ color: C.green }}>15 titles updated</strong> on <strong style={{ color: C.titanium }}>{TITLE_CHANGE_DATE}</strong>.
+          {hasCurrentData
+            ? " Comparing current performance against baseline metrics recorded at time of change."
+            : " Baseline CTR and views recorded at time of change. Charts will show before vs after once new data is pulled."}
+        </p>
+      </div>
+
+      {/* KPI summary row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
+        <div style={{ ...cardInner, textAlign: "center", borderTop: `2px solid ${C.red}` }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, marginBottom: 4 }}>AVG BASELINE CTR</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: C.red }}>{avgBaselineCtr}%</div>
+          <div style={{ fontSize: 9, color: C.muted }}>vs 6.76% channel avg</div>
+        </div>
+        <div style={{ ...cardInner, textAlign: "center", borderTop: `2px solid ${C.titanium}` }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, marginBottom: 4 }}>TOTAL BASELINE VIEWS</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: C.titanium }}>{totalBaselineViews.toLocaleString()}</div>
+          <div style={{ fontSize: 9, color: C.muted }}>across 15 videos</div>
+        </div>
+        <div style={{ ...cardInner, textAlign: "center", borderTop: `2px solid ${hasCurrentData ? C.green : C.amber}` }}>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, marginBottom: 4 }}>TRACKING STATUS</div>
+          <div style={{ fontSize: 24, fontWeight: 900, color: hasCurrentData ? C.green : C.amber }}>{hasCurrentData ? "ACTIVE" : "BASELINE"}</div>
+          <div style={{ fontSize: 9, color: C.muted }}>{hasCurrentData ? "comparing data" : "awaiting first refresh"}</div>
+        </div>
+      </div>
+
+      {/* CTR Chart */}
+      <div style={{ ...card, marginBottom: 16 }}>
+        <h4 style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 1, textTransform: "uppercase" }}>CTR by Video {hasCurrentData ? "(Baseline vs Current)" : "(Baseline)"}</h4>
+        <p style={{ margin: "0 0 12px", fontSize: 10, color: C.muted }}>Channel average CTR shown as green reference line at 6.76%</p>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={ctrChartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <XAxis dataKey="name" tick={{ fontSize: 9, fill: C.muted }} />
+            <YAxis tick={{ fontSize: 9, fill: C.muted }} domain={[0, "auto"]} unit="%" />
+            <Tooltip content={<CustomCtrTooltip />} />
+            <Bar dataKey="baseline" fill={C.red} radius={[2, 2, 0, 0]} name="Baseline CTR" />
+            {hasCurrentData && <Bar dataKey="current" fill={C.green} radius={[2, 2, 0, 0]} name="Current CTR" />}
+            <CartesianGrid horizontal={false} vertical={false}>
+            </CartesianGrid>
+          </BarChart>
+        </ResponsiveContainer>
+        {/* Channel avg reference note */}
+        <div style={{ textAlign: "center", marginTop: 4 }}>
+          <span style={{ fontSize: 9, color: C.muted }}>
+            <span style={{ display: "inline-block", width: 12, height: 2, background: C.red, marginRight: 4, verticalAlign: "middle" }}></span> Baseline CTR
+            {hasCurrentData && <><span style={{ display: "inline-block", width: 12, height: 2, background: C.green, marginLeft: 12, marginRight: 4, verticalAlign: "middle" }}></span> Current CTR</>}
+            <span style={{ display: "inline-block", width: 12, height: 2, background: C.green, marginLeft: 12, marginRight: 4, verticalAlign: "middle", opacity: 0.4 }}></span> Channel Avg: 6.76%
+          </span>
+        </div>
+      </div>
+
+      {/* Views Chart */}
+      <div style={{ ...card, marginBottom: 20 }}>
+        <h4 style={{ margin: "0 0 4px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 1, textTransform: "uppercase" }}>Views by Video {hasCurrentData ? "(Baseline vs Current)" : "(Baseline)"}</h4>
+        <p style={{ margin: "0 0 12px", fontSize: 10, color: C.muted }}>Total views at time of title change. {hasCurrentData ? "Green bars show current totals." : "New bars will appear after first data pull."}</p>
+        <ResponsiveContainer width="100%" height={220}>
+          <BarChart data={viewsChartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+            <XAxis dataKey="name" tick={{ fontSize: 9, fill: C.muted }} />
+            <YAxis tick={{ fontSize: 9, fill: C.muted }} />
+            <Tooltip content={<CustomViewsTooltip />} />
+            <Bar dataKey="baseline" fill={C.titanium} radius={[2, 2, 0, 0]} name="Baseline Views" />
+            {hasCurrentData && <Bar dataKey="current" fill={C.green} radius={[2, 2, 0, 0]} name="Current Views" />}
+          </BarChart>
+        </ResponsiveContainer>
+        <div style={{ textAlign: "center", marginTop: 4 }}>
+          <span style={{ fontSize: 9, color: C.muted }}>
+            <span style={{ display: "inline-block", width: 12, height: 2, background: C.titanium, marginRight: 4, verticalAlign: "middle" }}></span> Baseline Views
+            {hasCurrentData && <><span style={{ display: "inline-block", width: 12, height: 2, background: C.green, marginLeft: 12, marginRight: 4, verticalAlign: "middle" }}></span> Current Views</>}
+          </span>
+        </div>
+      </div>
+
+      {/* Per-video detail cards */}
+      <h4 style={{ margin: "0 0 10px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 1, textTransform: "uppercase" }}>Per-Video Detail</h4>
+      <div style={{ display: "grid", gap: 6 }}>
+        {porscheRetitles.map((v, i) => {
+          const ctrDelta = v.currentCtr != null ? +(v.currentCtr - v.baselineCtr).toFixed(2) : null;
+          const viewsDelta = v.currentViews != null ? v.currentViews - v.baselineViews : null;
+          return (
+            <div key={i} style={cardInner}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontSize: 10, fontWeight: 900, color: C.titaniumDark, width: 22 }}>#{i + 1}</span>
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 2, background: C.redDim, color: C.red, letterSpacing: 0.5 }}>{v.baselineCtr}% CTR</span>
+                  {ctrDelta != null && (
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 2, background: ctrDelta >= 0 ? C.greenDim : C.redDim, color: ctrDelta >= 0 ? C.green : C.red, letterSpacing: 0.5 }}>
+                      {ctrDelta >= 0 ? "+" : ""}{ctrDelta}%
+                    </span>
+                  )}
+                  <span style={{ fontSize: 10, color: C.muted }}>{v.baselineViews.toLocaleString()} views</span>
+                  {viewsDelta != null && (
+                    <span style={{ fontSize: 10, fontWeight: 700, color: viewsDelta >= 0 ? C.green : C.red }}>
+                      ({viewsDelta >= 0 ? "+" : ""}{viewsDelta.toLocaleString()})
+                    </span>
+                  )}
+                  <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 6px", borderRadius: 2, background: "rgba(0,200,83,0.12)", color: C.green, letterSpacing: 0.5 }}>{v.status}</span>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: C.muted, marginBottom: 4 }}>
+                <span style={{ color: C.red, fontWeight: 700, letterSpacing: 0.5 }}>OLD:</span> <span style={{ textDecoration: "line-through", opacity: 0.5 }}>{v.old}</span>
+              </div>
+              <div style={{ fontSize: 13, color: C.green, fontWeight: 700 }}>
+                <span style={{ letterSpacing: 0.5 }}>NEW:</span> {v.newTitle}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 3: AFFILIATE OPTIMIZER
+// ═══════════════════════════════════════════════════════
+function AffiliateTab() {
+  const [expandedVid, setExpandedVid] = useState(null);
+  const totalEstMin = affiliateVideos.reduce((sum, v) => sum + v.products.reduce((s, p) => s + parseInt(p.estRev.split("-")[0].replace("$", "")), 0), 0);
+  const totalEstMax = affiliateVideos.reduce((sum, v) => sum + v.products.reduce((s, p) => s + parseInt(p.estRev.split("-")[1] || p.estRev.split("-")[0].replace("$", "").replace("/mo", "")), 0), 0);
+
+  return (
+    <div>
+      <div style={{ ...card, marginBottom: 20, borderLeft: `3px solid ${C.green}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+          <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: C.green, letterSpacing: 1, textTransform: "uppercase" }}>Amazon Affiliate Optimizer</h3>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: C.green }}>${totalEstMin}-${totalEstMax}/mo</div>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1 }}>ESTIMATED AFFILIATE REVENUE</div>
+          </div>
+        </div>
+        <p style={{ margin: 0, fontSize: 12, color: C.text, lineHeight: 1.7 }}>
+          Your top-performing videos with recommended products to link. Each has estimated monthly clicks and revenue.
+          <strong style={{ color: C.white }}> Expand each video, find products on Amazon, generate your affiliate link via SiteStripe, and paste into the description.</strong>
+        </p>
+        <div style={{ ...cardInner, marginTop: 12, background: "rgba(45, 212, 160, 0.04)" }}>
+          <p style={{ margin: 0, fontSize: 11, color: C.text, lineHeight: 1.6 }}>
+            <strong style={{ color: C.amber }}>Description Template:</strong>
+          </p>
+          <pre style={{ margin: "8px 0 0", padding: 12, background: "rgba(0,0,0,0.5)", borderRadius: 3, fontSize: 11, color: C.green, whiteSpace: "pre-wrap", lineHeight: 1.5, border: `1px solid ${C.cardBorder}` }}>
+{`Products & Parts Used (Affiliate Links):
+► [Product Name 1]: [YOUR AFFILIATE LINK]
+► [Product Name 2]: [YOUR AFFILIATE LINK]
+
+🔧 FCP Euro: [YOUR FCP EURO LINK]
+🏎 034 Motorsport: https://034motorsport.com
+
+Some links are affiliate links. Thanks for supporting VAGUH!`}
+          </pre>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gap: 6 }}>
+        {affiliateVideos.map((v, i) => (
+          <div key={i} style={{ ...cardInner, borderLeft: `3px solid ${v.hasLinks ? C.green : C.amber}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }} onClick={() => setExpandedVid(expandedVid === i ? null : i)}>
+              <div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span style={{ fontWeight: 700, fontSize: 13, color: C.white }}>{v.title}</span>
+                  <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 2, background: v.hasLinks ? C.greenDim : C.amberDim, color: v.hasLinks ? C.green : C.amber, letterSpacing: 0.5 }}>{v.hasLinks ? "HAS LINKS" : "NEEDS LINKS"}</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{v.views.toLocaleString()} views · {v.products.length} products</div>
+              </div>
+              <span style={{ color: C.muted, fontSize: 18, fontWeight: 300 }}>{expandedVid === i ? "−" : "+"}</span>
+            </div>
+            {expandedVid === i && (
+              <div style={{ marginTop: 12, borderTop: `1px solid ${C.cardBorder}`, paddingTop: 12 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead><tr style={{ borderBottom: `1px solid ${C.cardBorder}` }}>
+                    {["Product", "Category", "Est. Clicks", "Est. Revenue"].map(h => (
+                      <th key={h} style={{ padding: "6px 8px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase" }}>{h}</th>
+                    ))}
+                  </tr></thead>
+                  <tbody>{v.products.map((p, j) => (
+                    <tr key={j} style={{ borderBottom: `1px solid rgba(192, 196, 204, 0.04)` }}>
+                      <td style={{ padding: 8, fontWeight: 600, color: C.white }}>{p.name}</td>
+                      <td style={{ padding: 8 }}><span style={{ background: "rgba(255,255,255,0.04)", padding: "2px 6px", borderRadius: 2, fontSize: 10, letterSpacing: 0.5 }}>{p.category}</span></td>
+                      <td style={{ padding: 8, color: C.titanium }}>{p.estClicks}</td>
+                      <td style={{ padding: 8, color: C.green, fontWeight: 700 }}>{p.estRev}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div style={{ ...card, marginTop: 20, borderLeft: `3px solid ${C.amber}` }}>
+        <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.amber, letterSpacing: 2, textTransform: "uppercase" }}>Pro Tips</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12, color: C.text }}>
+          {[
+            { tip: "Put affiliate links ABOVE the fold (first 3 lines). Most viewers never click 'Show More'.", icon: "📍" },
+            { tip: "Pin a comment with top 3 product links. Pinned comments get 10x more clicks.", icon: "📌" },
+            { tip: "FCP Euro/ECS Tuning pay 5-8% on car parts vs Amazon's 1-3%. Apply to both.", icon: "💰" },
+            { tip: "Use Amazon 'idea lists' for themed collections (e.g., 'My S5 Build Parts').", icon: "📋" },
+          ].map((t, i) => (
+            <div key={i} style={{ ...cardInner, display: "flex", gap: 10 }}>
+              <span style={{ fontSize: 18 }}>{t.icon}</span>
+              <span style={{ lineHeight: 1.5 }}>{t.tip}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 4: OVERVIEW
+// ═══════════════════════════════════════════════════════
+function OverviewTab() {
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8, marginBottom: 24 }}>
+        {kpis.map((k, i) => (
+          <div key={i} style={{ ...cardInner, textAlign: "center" }}>
+            <div style={{ fontSize: 22, marginBottom: 4 }}>{k.icon}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: k.color }}>{k.value}</div>
+            <div style={{ fontSize: 9, color: C.muted, marginTop: 2, letterSpacing: 1.5, textTransform: "uppercase" }}>{k.label}</div>
+            <div style={{ fontSize: 10, color: k.down ? C.red : C.green, marginTop: 4, fontWeight: 700 }}>{k.trend}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+        <div style={{ ...card, borderLeft: `3px solid ${C.red}` }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.red, letterSpacing: 2, textTransform: "uppercase" }}>Critical Findings</h3>
+          {[
+            { label: "Search Dominance", detail: "44% of views from YouTube Search. You're a search engine, not a community.", color: C.green },
+            { label: "Subscriber Gap", detail: "97% of views from non-subscribers. No community = no Mat Armstrong model.", color: C.red },
+            { label: "Suggested Videos Broken", detail: "3.4% CTR on suggested. YouTube isn't recommending you.", color: C.red },
+            { label: "Shorts = Waste", detail: "$12.39 total from Shorts. Long-form earns 150x more per view.", color: C.amber },
+            { label: "Porsche Titles Broken", detail: "1.12% CTR. See Porsche Retitle tab for new titles.", color: C.red },
+          ].map((f, i) => (
+            <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+              <div style={{ width: 8, height: 8, borderRadius: 2, background: f.color, marginTop: 6, flexShrink: 0 }} />
+              <div><span style={{ fontWeight: 700, fontSize: 12, color: f.color }}>{f.label}: </span><span style={{ fontSize: 12 }}>{f.detail}</span></div>
+            </div>
+          ))}
+        </div>
+        <div style={{ ...card, borderLeft: `3px solid ${C.titanium}` }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>The Mat Armstrong Gap</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            {[
+              { metric: "Subscribers", you: "9,042", mat: "6,300,000", gap: "697x" },
+              { metric: "Monthly Views", you: "~33,880", mat: "33,890,000", gap: "1,000x" },
+              { metric: "Monthly Revenue", you: "~$163", mat: "$60K-180K", gap: "365x+" },
+              { metric: "Upload Frequency", you: "~2.5/mo", mat: "8-12/mo", gap: "4x" },
+              { metric: "Suggested CTR", you: "3.4%", mat: "Est. 8-12%", gap: "3x" },
+              { metric: "Sub View %", you: "3%", mat: "Est. 30-40%", gap: "10x" },
+            ].map((g, i) => (
+              <div key={i} style={{ ...cardInner, padding: 10, textAlign: "center" }}>
+                <div style={{ fontSize: 8, color: C.muted, marginBottom: 4, letterSpacing: 1.5, textTransform: "uppercase" }}>{g.metric}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                  <span style={{ color: C.amber }}>{g.you}</span><span style={{ color: C.green }}>{g.mat}</span>
+                </div>
+                <div style={{ fontSize: 10, color: C.red, fontWeight: 800, marginTop: 4 }}>Gap: {g.gap}</div>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: C.muted, marginTop: 12, lineHeight: 1.5 }}>
+            The #1 difference: <strong style={{ color: C.white }}>serialized storytelling + consistent uploads</strong>.
+          </p>
+        </div>
+      </div>
+      <div style={{ ...card, borderLeft: `3px solid ${C.titanium}` }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>Revenue by Category</h3>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={categoryData} margin={{ top: 5, right: 20, left: 20, bottom: 60 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(192, 196, 204, 0.06)" />
+            <XAxis dataKey="name" tick={{ fill: C.muted, fontSize: 10 }} angle={-35} textAnchor="end" />
+            <YAxis tick={{ fill: C.muted, fontSize: 10 }} />
+            <Tooltip contentStyle={tipStyle} />
+            <Bar dataKey="revenue" name="Revenue ($)" radius={[3, 3, 0, 0]}>
+              {categoryData.map((e, i) => <Cell key={i} fill={e.color} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 5: CONTENT
+// ═══════════════════════════════════════════════════════
+function ContentTab() {
+  const [sortBy, setSortBy] = useState("views");
+  const sorted = [...topVideos].sort((a, b) => b[sortBy] - a[sortBy]);
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 24 }}>
+        {categoryData.map((c, i) => (
+          <div key={i} style={{ ...cardInner, borderLeft: `3px solid ${c.color}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontWeight: 700, fontSize: 13, color: C.white }}>{c.name}</span>
+              <span style={{ fontSize: 9, fontWeight: 800, padding: "2px 8px", borderRadius: 2, letterSpacing: 0.5, background: c.priority === "HIGH" ? C.greenDim : c.priority === "CRITICAL FIX" ? C.redDim : C.amberDim, color: c.priority === "HIGH" ? C.green : c.priority === "CRITICAL FIX" ? C.red : C.amber }}>{c.priority}</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11 }}>
+              <div><span style={{ color: C.muted, fontSize: 8, letterSpacing: 1.5 }}>VIDEOS</span><br /><strong>{c.videos}</strong></div>
+              <div><span style={{ color: C.muted, fontSize: 8, letterSpacing: 1.5 }}>VIEWS</span><br /><strong>{c.views.toLocaleString()}</strong></div>
+              <div><span style={{ color: C.muted, fontSize: 8, letterSpacing: 1.5 }}>REVENUE</span><br /><strong style={{ color: C.green }}>${c.revenue.toLocaleString()}</strong></div>
+            </div>
+            <div style={{ marginTop: 8, fontSize: 10, color: C.muted }}>Avg {c.avgViews.toLocaleString()} views | RPM: ${c.rpm.toFixed(0)}/1K</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ ...card, borderLeft: `3px solid ${C.titanium}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h3 style={{ margin: 0, fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>Top 10 Videos</h3>
+          <div style={{ display: "flex", gap: 3 }}>
+            {["views", "rev", "ctr", "rpm"].map(s => (
+              <button key={s} onClick={() => setSortBy(s)} style={{
+                padding: "4px 10px", borderRadius: 2, border: "none", cursor: "pointer", fontSize: 10, fontWeight: 700, letterSpacing: 1,
+                background: sortBy === s ? C.red : "rgba(255,255,255,0.03)", color: sortBy === s ? C.white : C.muted, textTransform: "uppercase",
+              }}>{s}</button>
+            ))}
+          </div>
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead><tr style={{ borderBottom: `1px solid ${C.cardBorder}` }}>
+            {["#", "Title", "Cat", "Views", "Revenue", "CTR", "RPM"].map(h => (
+              <th key={h} style={{ padding: "8px 8px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase" }}>{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>{sorted.map((v, i) => (
+            <tr key={i} style={{ borderBottom: `1px solid rgba(192, 196, 204, 0.04)` }}>
+              <td style={{ padding: 8, color: C.muted }}>{i + 1}</td>
+              <td style={{ padding: 8, fontWeight: 600, color: C.white, maxWidth: 240 }}>{v.title}</td>
+              <td style={{ padding: 8 }}><span style={{ background: "rgba(255,255,255,0.04)", padding: "2px 6px", borderRadius: 2, fontSize: 10, letterSpacing: 0.5 }}>{v.cat}</span></td>
+              <td style={{ padding: 8 }}>{v.views.toLocaleString()}</td>
+              <td style={{ padding: 8, color: C.green, fontWeight: 700 }}>${v.rev.toLocaleString()}</td>
+              <td style={{ padding: 8, color: v.ctr > 7 ? C.green : v.ctr > 5 ? C.amber : C.red }}>{v.ctr}%</td>
+              <td style={{ padding: 8, color: v.rpm > 100 ? C.green : C.muted }}>${v.rpm.toFixed(2)}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 6: TRAFFIC & AUDIENCE
+// ═══════════════════════════════════════════════════════
+function TrafficTab() {
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+        <div style={{ ...card, borderLeft: `3px solid ${C.titanium}` }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>Traffic Sources</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <PieChart>
+              <Pie data={trafficData} cx="50%" cy="50%" innerRadius={55} outerRadius={95} paddingAngle={3} dataKey="views" nameKey="name">
+                {trafficData.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+              </Pie>
+              <Tooltip contentStyle={tipStyle} formatter={(v) => v.toLocaleString()} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+            {trafficData.map((t, i) => (
+              <span key={i} style={{ fontSize: 10, display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: PIE_COLORS[i % PIE_COLORS.length] }} />{t.name} ({t.pct}%)
+              </span>
+            ))}
+          </div>
+        </div>
+        <div style={{ ...card, borderLeft: `3px solid ${C.red}` }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.red, letterSpacing: 2, textTransform: "uppercase" }}>Subscriber vs Non-Subscriber</h3>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 32 }}>
+            <ResponsiveContainer width="50%" height={200}>
+              <PieChart><Pie data={subData} cx="50%" cy="50%" innerRadius={40} outerRadius={75} dataKey="views"><Cell fill={C.red} /><Cell fill={C.green} /></Pie></PieChart>
+            </ResponsiveContainer>
+            <div>
+              <div style={{ marginBottom: 16 }}><div style={{ fontSize: 36, fontWeight: 900, color: C.red }}>97%</div><div style={{ fontSize: 12, color: C.muted }}>Non-subscribers</div></div>
+              <div><div style={{ fontSize: 36, fontWeight: 900, color: C.green }}>3%</div><div style={{ fontSize: 12, color: C.muted }}>Subscribers</div></div>
+            </div>
+          </div>
+          <div style={{ ...cardInner, marginTop: 12, background: C.redDim }}>
+            <p style={{ margin: 0, fontSize: 11, lineHeight: 1.5 }}>
+              <strong style={{ color: C.red }}>This is the #1 thing holding you back.</strong> Fix with: serialized content + consistent uploads + calls to subscribe.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div style={{ ...card, borderLeft: `3px solid ${C.titanium}` }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>Traffic Breakdown</h3>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+          <thead><tr style={{ borderBottom: `1px solid ${C.cardBorder}` }}>
+            {["Source", "Views", "%", "Hours", "CTR", "Insight"].map(h => (
+              <th key={h} style={{ padding: "8px 8px", textAlign: "left", color: C.muted, fontWeight: 700, fontSize: 9, letterSpacing: 1.5, textTransform: "uppercase" }}>{h}</th>
+            ))}
+          </tr></thead>
+          <tbody>{trafficData.map((t, i) => (
+            <tr key={i} style={{ borderBottom: `1px solid rgba(192, 196, 204, 0.04)` }}>
+              <td style={{ padding: 8, fontWeight: 600, color: C.white }}>{t.name}</td>
+              <td style={{ padding: 8 }}>{t.views.toLocaleString()}</td>
+              <td style={{ padding: 8 }}>{t.pct}%</td>
+              <td style={{ padding: 8 }}>{t.hours.toLocaleString()}</td>
+              <td style={{ padding: 8, color: t.ctr ? (t.ctr > 7 ? C.green : t.ctr > 5 ? C.amber : C.red) : C.muted }}>{t.ctr ? `${t.ctr}%` : "N/A"}</td>
+              <td style={{ padding: 8, fontSize: 11, color: C.muted, maxWidth: 260 }}>{t.insight}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB 7: REVENUE
+// ═══════════════════════════════════════════════════════
+function RevenueTab() {
+  const projections = [
+    { period: "Current", adsense: 163, affiliate: 26, sponsors: 0, merch: 0, total: 189 },
+    { period: "Mo 3", adsense: 300, affiliate: 250, sponsors: 500, merch: 50, total: 1100 },
+    { period: "Mo 6", adsense: 500, affiliate: 400, sponsors: 1000, merch: 150, total: 2050 },
+    { period: "Mo 12", adsense: 800, affiliate: 600, sponsors: 2000, merch: 300, total: 3700 },
+    { period: "Yr 2", adsense: 1500, affiliate: 1000, sponsors: 4000, merch: 500, total: 7000 },
+  ];
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
+        <div style={{ ...card, borderLeft: `3px solid ${C.green}` }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.green, letterSpacing: 2, textTransform: "uppercase" }}>Current Revenue Split</h3>
+          <ResponsiveContainer width="100%" height={200}>
+            <PieChart><Pie data={revenueData} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={3} dataKey="value">
+              <Cell fill={C.green} /><Cell fill={C.titanium} /><Cell fill={C.red} />
+            </Pie><Tooltip contentStyle={tipStyle} formatter={(v) => `$${v.toFixed(2)}`} /></PieChart>
+          </ResponsiveContainer>
+          {revenueData.map((r, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid rgba(192, 196, 204, 0.04)`, fontSize: 12 }}>
+              <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ width: 8, height: 8, borderRadius: 2, background: [C.green, C.titanium, C.red][i] }} />{r.name}
+              </span>
+              <span style={{ fontWeight: 700 }}>${r.value.toFixed(2)} ({r.pct}%)</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ ...card, borderLeft: `3px solid ${C.titanium}` }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>RPM by Category</h3>
+          <ResponsiveContainer width="100%" height={250}>
+            <BarChart data={categoryData.filter(c => c.rpm > 10).sort((a, b) => b.rpm - a.rpm)} margin={{ top: 5, right: 20, left: 20, bottom: 60 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(192, 196, 204, 0.06)" />
+              <XAxis dataKey="name" tick={{ fill: C.muted, fontSize: 10 }} angle={-35} textAnchor="end" />
+              <YAxis tick={{ fill: C.muted, fontSize: 10 }} />
+              <Tooltip contentStyle={tipStyle} formatter={(v) => `$${v.toFixed(2)}`} />
+              <Bar dataKey="rpm" name="RPM ($/1K)" radius={[3, 3, 0, 0]} fill={C.red} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      <div style={{ ...card, borderLeft: `3px solid ${C.amber}` }}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.amber, letterSpacing: 2, textTransform: "uppercase" }}>Revenue Projections (Monthly)</h3>
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={projections} margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(192, 196, 204, 0.06)" />
+            <XAxis dataKey="period" tick={{ fill: C.muted, fontSize: 11 }} />
+            <YAxis tick={{ fill: C.muted, fontSize: 11 }} />
+            <Tooltip contentStyle={tipStyle} formatter={(v) => `$${v.toLocaleString()}`} />
+            <Legend />
+            <Bar dataKey="adsense" name="AdSense" stackId="a" fill={C.titanium} />
+            <Bar dataKey="affiliate" name="Affiliates" stackId="a" fill={C.green} />
+            <Bar dataKey="sponsors" name="Sponsors" stackId="a" fill={C.red} />
+            <Bar dataKey="merch" name="Merch" stackId="a" fill={C.amber} radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+        <div style={{ display: "flex", justifyContent: "space-around", marginTop: 12 }}>
+          {projections.map((p, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 18, fontWeight: 900, color: C.green }}>${p.total.toLocaleString()}</div>
+              <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1 }}>{p.period}/mo</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════
+// TIKTOK STRATEGY TAB
+// ═══════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// TAB: TIKTOK STRATEGY
+// ═══════════════════════════════════════════════════════
+function TikTokStrategyTab() {
+  const kpis = [
+    { label: "Followers", value: "813", target: "10,000", icon: "👥", color: C.titanium, note: "Need 10K for Creator Rewards" },
+    { label: "Total Likes", value: "10.8K", target: "50K", icon: "❤️", color: C.red, note: "~70 likes/video avg" },
+    { label: "Videos", value: "155", target: "250+", icon: "🎬", color: C.green, note: "Solid library" },
+    { label: "Est. Revenue", value: "$0", target: "$200/mo", icon: "💰", color: C.amber, note: "Not monetized yet" },
+    { label: "Top Video", value: "189.1K", target: "", icon: "🔥", color: C.green, note: "RS7 content viral hit" },
+    { label: "Search Traffic", value: "78.2%", target: "", icon: "🔍", color: C.titanium, note: "Huge SEO advantage" },
+  ];
+
+  const demographics = [
+    { label: "Male", pct: 89 },
+    { label: "Female", pct: 11 },
+  ];
+
+  const ageData = [
+    { name: "18-24", pct: 18.5 },
+    { name: "25-34", pct: 25.9 },
+    { name: "35-44", pct: 28.7 },
+    { name: "45-54", pct: 16.0 },
+    { name: "55+", pct: 10.9 },
+  ];
+
+  const topVideos = [
+    { title: "RS7 Content", views: "189.1K" },
+    { title: "100 More Horsepower", views: "17.9K" },
+    { title: "Sounds of the Audi B9 S5", views: "12K" },
+    { title: "SQ7/S5 Taillight", views: "10.9K" },
+    { title: "S5 0-60 Runs Stage 3", views: "9,781" },
+    { title: "7.68s Drag Time (Blue Audi)", views: "6,505" },
+    { title: "Porsche 911 Restoration Pt 23", views: "5,627" },
+    { title: "Detailing/Working on Car", views: "4,306" },
+  ];
+
+  const searchQueries = [
+    "tte810 sq5", "Audi q7 2021 horsepower upgrades", "Audi q5 2016 2.0T",
+    "audi rs7 factory exhaust sound", "Swapping engine audi s7"
+  ];
+
+  const trafficSources = [
+    { name: "Search", pct: 78.2 },
+    { name: "For You", pct: 19.6 },
+    { name: "Personal Profile", pct: 2.1 },
+    { name: "Following", pct: 0.1 },
+  ];
+
+  const roadmap = [
+    { phase: "Phase 1: Foundation (Weeks 1-4)", color: C.red, tasks: [
+      { task: "Post 4-5x/week (currently inconsistent)", impact: "HIGH", status: "todo" },
+      { task: "Use trending sounds on 1-min+ videos (avoid muting)", impact: "HIGH", status: "todo" },
+      { task: "Optimize captions with search keywords (Audi, VW, Porsche + model + mod)", impact: "HIGH", status: "todo" },
+      { task: "Cross-post YouTube Shorts to TikTok with TT-native captions", impact: "MED", status: "todo" },
+      { task: "Add affiliate links in bio (Linktree or Stan Store)", impact: "MED", status: "todo" },
+    ]},
+    { phase: "Phase 2: Growth Sprint (Months 2-3)", color: C.amber, tasks: [
+      { task: "Create before/after mod transformation series (hook in first 2 sec)", impact: "HIGH", status: "todo" },
+      { task: "Target 1-min+ videos for Creator Rewards eligibility", impact: "HIGH", status: "todo" },
+      { task: "Duet/Stitch other car creators for cross-pollination", impact: "MED", status: "todo" },
+      { task: "Post at peak time: 12-3pm based on follower activity data", impact: "MED", status: "todo" },
+      { task: "Run a \"guess the horsepower\" or \"name this exhaust note\" engagement series", impact: "MED", status: "todo" },
+    ]},
+    { phase: "Phase 3: Monetization (Months 4-6)", color: C.green, tasks: [
+      { task: "Hit 10K followers → unlock Creator Rewards Program", impact: "CRITICAL", status: "todo" },
+      { task: "Hit 10K followers → unlock Creator Marketplace (brand deals)", impact: "CRITICAL", status: "todo" },
+      { task: "Set up TikTok Shop for merch (when VAGUH merch launches)", impact: "HIGH", status: "todo" },
+      { task: "Pitch affiliate-ready content (IE intake installs, BadgeSkins, etc.)", impact: "HIGH", status: "todo" },
+      { task: "Go LIVE weekly for LIVE Rewards gifts (already enrolled)", impact: "MED", status: "todo" },
+    ]},
+  ];
+
+  const projections = [
+    { month: "Current", followers: 813, estRevenue: 0 },
+    { month: "Month 3", followers: 2500, estRevenue: 0 },
+    { month: "Month 6", followers: 5000, estRevenue: 50 },
+    { month: "Month 9", followers: 10000, estRevenue: 200 },
+    { month: "Month 12", followers: 15000, estRevenue: 500 },
+  ];
+
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      {/* Header */}
+      <div style={{ ...card, borderLeft: `3px solid ${C.red}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: C.white, letterSpacing: 1 }}>TIKTOK GROWTH & REVENUE STRATEGY</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>@itspronounced_vaguh · Account created Jan 2021 · 78.2% search-driven traffic</div>
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, background: C.redDim, padding: "4px 10px", borderRadius: 3 }}>NOT MONETIZED</div>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10 }}>
+        {kpis.map((k, i) => (
+          <div key={i} style={{ ...cardInner, textAlign: "center" }}>
+            <div style={{ fontSize: 18 }}>{k.icon}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: k.color, marginTop: 4 }}>{k.value}</div>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, marginTop: 2 }}>{k.label}</div>
+            {k.target && <div style={{ fontSize: 9, color: C.amber, marginTop: 2 }}>Target: {k.target}</div>}
+            <div style={{ fontSize: 8, color: C.muted, marginTop: 2, fontStyle: "italic" }}>{k.note}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Traffic Sources */}
+        <div style={card}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.titanium, letterSpacing: 1, marginBottom: 12 }}>TRAFFIC SOURCES (LAST 7 DAYS)</div>
+          {trafficSources.map((s, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ width: 90, fontSize: 11, color: C.text }}>{s.name}</div>
+              <div style={{ flex: 1, height: 14, background: C.titaniumDim, borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ width: `${s.pct}%`, height: "100%", background: i === 0 ? C.red : i === 1 ? C.amber : C.titaniumDark, borderRadius: 2 }} />
+              </div>
+              <div style={{ width: 50, textAlign: "right", fontSize: 11, fontWeight: 700, color: C.white }}>{s.pct}%</div>
+            </div>
+          ))}
+          <div style={{ marginTop: 12, padding: 10, background: C.greenDim, borderRadius: 3, borderLeft: `2px solid ${C.green}` }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: C.green }}>KEY INSIGHT</div>
+            <div style={{ fontSize: 11, color: C.text, marginTop: 2 }}>78.2% of your TikTok traffic comes from SEARCH — this is extremely rare and means your content ranks for Audi/VW keywords. Double down on keyword-rich captions.</div>
+          </div>
+        </div>
+
+        {/* Top Videos + Demographics */}
+        <div style={card}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.titanium, letterSpacing: 1, marginBottom: 12 }}>TOP PERFORMING VIDEOS</div>
+          {topVideos.map((v, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: `1px solid ${C.cardBorder}` }}>
+              <div style={{ fontSize: 11, color: i === 0 ? C.green : C.text }}>{i + 1}. {v.title}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: i === 0 ? C.green : C.white }}>{v.views}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Age Demographics */}
+        <div style={card}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.titanium, letterSpacing: 1, marginBottom: 12 }}>AUDIENCE DEMOGRAPHICS</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 8 }}>GENDER</div>
+              <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+                <div style={{ width: 50, fontSize: 11, color: C.text }}>Male</div>
+                <div style={{ flex: 1, height: 16, background: C.titaniumDim, borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: "89%", height: "100%", background: C.red, borderRadius: 2 }} />
+                </div>
+                <div style={{ width: 40, textAlign: "right", fontSize: 11, fontWeight: 700, color: C.white }}>89%</div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <div style={{ width: 50, fontSize: 11, color: C.text }}>Female</div>
+                <div style={{ flex: 1, height: 16, background: C.titaniumDim, borderRadius: 2, overflow: "hidden" }}>
+                  <div style={{ width: "11%", height: "100%", background: C.titanium, borderRadius: 2 }} />
+                </div>
+                <div style={{ width: 40, textAlign: "right", fontSize: 11, fontWeight: 700, color: C.white }}>11%</div>
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 8 }}>AGE DISTRIBUTION</div>
+              {ageData.map((a, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", marginBottom: 4 }}>
+                  <div style={{ width: 40, fontSize: 10, color: C.text }}>{a.name}</div>
+                  <div style={{ flex: 1, height: 12, background: C.titaniumDim, borderRadius: 2, overflow: "hidden" }}>
+                    <div style={{ width: `${a.pct * 3}%`, height: "100%", background: a.pct === 28.7 ? C.green : C.titaniumDark, borderRadius: 2 }} />
+                  </div>
+                  <div style={{ width: 35, textAlign: "right", fontSize: 10, fontWeight: 700, color: a.pct === 28.7 ? C.green : C.white }}>{a.pct}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            <div style={{ ...cardInner, textAlign: "center", padding: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 900, color: C.titanium }}>64.7%</div>
+              <div style={{ fontSize: 8, color: C.muted }}>UNITED STATES</div>
+            </div>
+            <div style={{ ...cardInner, textAlign: "center", padding: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 900, color: C.titanium }}>4.1%</div>
+              <div style={{ fontSize: 8, color: C.muted }}>SOUTH AFRICA</div>
+            </div>
+            <div style={{ ...cardInner, textAlign: "center", padding: 8 }}>
+              <div style={{ fontSize: 14, fontWeight: 900, color: C.titanium }}>3pm</div>
+              <div style={{ fontSize: 8, color: C.muted }}>PEAK ACTIVE TIME</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Monetization Status */}
+        <div style={card}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.titanium, letterSpacing: 1, marginBottom: 12 }}>MONETIZATION ELIGIBILITY</div>
+          {[
+            { program: "LIVE Rewards", status: "ENROLLED", color: C.green, note: "Active — go LIVE to earn gifts" },
+            { program: "Service+", status: "ELIGIBLE", color: C.amber, note: "Recommended — join to connect with clients during LIVE" },
+            { program: "Creator Rewards Program", status: "INELIGIBLE", color: C.red, note: "Requires 10K followers (you have 813)" },
+            { program: "Creator Marketplace", status: "INELIGIBLE", color: C.red, note: "Requires 10K followers for brand deals" },
+            { program: "Video Gifts", status: "INELIGIBLE", color: C.red, note: "Requires higher follower threshold" },
+            { program: "Subscription", status: "INELIGIBLE", color: C.red, note: "Requires higher follower threshold" },
+          ].map((p, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.cardBorder}` }}>
+              <div>
+                <div style={{ fontSize: 11, color: C.text }}>{p.program}</div>
+                <div style={{ fontSize: 9, color: C.muted }}>{p.note}</div>
+              </div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: p.color, background: p.color === C.green ? C.greenDim : p.color === C.amber ? C.amberDim : C.redDim, padding: "2px 8px", borderRadius: 2 }}>{p.status}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Growth Roadmap */}
+      <div style={card}>
+        <div style={{ fontSize: 15, fontWeight: 900, color: C.white, letterSpacing: 1, marginBottom: 16 }}>GROWTH ROADMAP — PATH TO 10K FOLLOWERS & MONETIZATION</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {roadmap.map((phase, pi) => (
+            <div key={pi} style={{ ...cardInner, borderTop: `3px solid ${phase.color}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: phase.color, marginBottom: 10 }}>{phase.phase}</div>
+              {phase.tasks.map((t, ti) => (
+                <div key={ti} style={{ display: "flex", alignItems: "flex-start", marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, marginRight: 6, marginTop: 1 }}>☐</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, color: C.text }}>{t.task}</div>
+                    <div style={{ fontSize: 8, color: t.impact === "CRITICAL" ? C.red : t.impact === "HIGH" ? C.amber : C.muted }}>{t.impact} IMPACT</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Revenue Projections */}
+      <div style={card}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.titanium, letterSpacing: 1, marginBottom: 12 }}>REVENUE PROJECTIONS</div>
+        <ResponsiveContainer width="100%" height={200}>
+          <ComposedChart data={projections}>
+            <CartesianGrid strokeDasharray="3 3" stroke={C.cardBorder} />
+            <XAxis dataKey="month" tick={{ fill: C.muted, fontSize: 10 }} />
+            <YAxis yAxisId="left" tick={{ fill: C.muted, fontSize: 10 }} />
+            <YAxis yAxisId="right" orientation="right" tick={{ fill: C.muted, fontSize: 10 }} />
+            <Tooltip contentStyle={tipStyle} />
+            <Bar yAxisId="left" dataKey="followers" fill={C.red} name="Followers" radius={[3, 3, 0, 0]} />
+            <Line yAxisId="right" type="monotone" dataKey="estRevenue" stroke={C.green} name="Est. Revenue $/mo" strokeWidth={2} dot={{ fill: C.green }} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB: INSTAGRAM STRATEGY
+// ═══════════════════════════════════════════════════════
+function InstagramStrategyTab() {
+  const accounts = [
+    {
+      handle: "@itspronounced_va_guh",
+      name: "Main VAGUH Account",
+      posts: 628, followers: 2863, following: 1419,
+      engagement: "1.7%", avgLikes: 46, avgComments: 2.3,
+      category: "Cars",
+      highlights: ["S5 Mods", "YouTube", "Superwrap", "R Mods"],
+      color: C.red,
+    },
+    {
+      handle: "@janisthe911",
+      name: "Porsche 911 Project",
+      posts: 29, followers: 269, following: 55,
+      engagement: "12-19%", avgLikes: 32, avgComments: 4.7,
+      category: "1973 Porsche 911T Restoration",
+      highlights: [],
+      color: C.green,
+    },
+  ];
+
+  const mainStrategy = [
+    { phase: "Phase 1: Optimize (Weeks 1-4)", color: C.red, tasks: [
+      { task: "Post Reels daily (repurpose TikTok & YT Shorts content)", impact: "HIGH" },
+      { task: "Use 20-30 targeted hashtags per post (#auditune #b9s5 #vwgolfr #audimods)", impact: "HIGH" },
+      { task: "Add affiliate links to bio via Linktree (IE, BadgeSkins, Amazon)", impact: "HIGH" },
+      { task: "Create Story Highlights for each project car + mod categories", impact: "MED" },
+      { task: "Engage 15 min/day: comment on car community posts, reply to DMs", impact: "MED" },
+    ]},
+    { phase: "Phase 2: Grow (Months 2-3)", color: C.amber, tasks: [
+      { task: "Collab Reels with local car builders and Achtuning", impact: "HIGH" },
+      { task: "Run a giveaway with a partner (BadgeSkins kit, IE merch)", impact: "HIGH" },
+      { task: "Use Instagram Broadcast Channel for mod tips + behind the scenes", impact: "MED" },
+      { task: "Cross-promote @janisthe911 in main account Stories weekly", impact: "MED" },
+      { task: "Tag brands in every install post (free exposure → paid collabs)", impact: "MED" },
+    ]},
+    { phase: "Phase 3: Monetize (Months 4-6)", color: C.green, tasks: [
+      { task: "Apply for Instagram Partner Program (10K followers needed)", impact: "CRITICAL" },
+      { task: "Pitch sponsored Reels to IE, 034, ROWE at $100-300/post", impact: "HIGH" },
+      { task: "Add Instagram Shopping for VAGUH merch when store launches", impact: "HIGH" },
+      { task: "Create exclusive mod install tutorials as Paid Subscription content", impact: "MED" },
+      { task: "Leverage both accounts for dual-brand partnership pitches", impact: "MED" },
+    ]},
+  ];
+
+  const porscheStrategy = [
+    { task: "Post 3-4x/week (currently ~2x/week)", impact: "HIGH" },
+    { task: "Document every restoration step as a numbered series (Part 1, 2, 3...)", impact: "HIGH" },
+    { task: "Use Porsche-specific hashtags (#porsche911restoration #aircooled911 #classicporsche)", impact: "HIGH" },
+    { task: "Tag Porsche community accounts and restoration shops for features", impact: "MED" },
+    { task: "Share parts sourcing stories (where you found OEM parts, costs, challenges)", impact: "MED" },
+    { task: "Cross-post to r/Porsche and Porsche forums with IG link", impact: "MED" },
+  ];
+
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      {/* Header */}
+      <div style={{ ...card, borderLeft: `3px solid ${C.red}` }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: C.white, letterSpacing: 1 }}>INSTAGRAM GROWTH & REVENUE STRATEGY</div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>2 accounts · Combined 3,132 followers · Strong Reels engagement</div>
+      </div>
+
+      {/* Account Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {accounts.map((a, i) => (
+          <div key={i} style={{ ...card, borderTop: `3px solid ${a.color}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 900, color: C.white }}>{a.handle}</div>
+                <div style={{ fontSize: 11, color: C.muted }}>{a.name} · {a.category}</div>
+              </div>
+              <div style={{ fontSize: 10, color: a.color, background: a.color === C.green ? C.greenDim : C.redDim, padding: "3px 8px", borderRadius: 3 }}>
+                {a.engagement} engagement
+              </div>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginTop: 12 }}>
+              {[
+                { label: "Posts", value: a.posts.toLocaleString() },
+                { label: "Followers", value: a.followers.toLocaleString() },
+                { label: "Avg Likes", value: a.avgLikes },
+                { label: "Avg Comments", value: a.avgComments },
+              ].map((s, si) => (
+                <div key={si} style={{ ...cardInner, textAlign: "center", padding: 8 }}>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: C.white }}>{s.value}</div>
+                  <div style={{ fontSize: 8, color: C.muted, letterSpacing: 1 }}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+            {a.highlights.length > 0 && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 9, color: C.muted, marginBottom: 4 }}>STORY HIGHLIGHTS</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {a.highlights.map((h, hi) => (
+                    <div key={hi} style={{ fontSize: 9, color: C.text, background: C.titaniumDim, padding: "2px 8px", borderRadius: 10 }}>{h}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Main Account Strategy */}
+      <div style={card}>
+        <div style={{ fontSize: 15, fontWeight: 900, color: C.white, letterSpacing: 1, marginBottom: 16 }}>MAIN ACCOUNT ROADMAP — @itspronounced_va_guh</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {mainStrategy.map((phase, pi) => (
+            <div key={pi} style={{ ...cardInner, borderTop: `3px solid ${phase.color}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: phase.color, marginBottom: 10 }}>{phase.phase}</div>
+              {phase.tasks.map((t, ti) => (
+                <div key={ti} style={{ display: "flex", alignItems: "flex-start", marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, marginRight: 6, marginTop: 1 }}>☐</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 10, color: C.text }}>{t.task}</div>
+                    <div style={{ fontSize: 8, color: t.impact === "CRITICAL" ? C.red : t.impact === "HIGH" ? C.amber : C.muted }}>{t.impact} IMPACT</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Porsche Account Strategy */}
+      <div style={card}>
+        <div style={{ fontSize: 15, fontWeight: 900, color: C.white, letterSpacing: 1, marginBottom: 4 }}>PORSCHE PROJECT ACCOUNT — @janisthe911</div>
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>1973 Porsche 911T Restoration · Named after Aunt Janis · 12-19% engagement rate (exceptional)</div>
+        <div style={{ padding: 12, background: C.greenDim, borderRadius: 3, borderLeft: `2px solid ${C.green}`, marginBottom: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: C.green }}>WHY THIS ACCOUNT MATTERS</div>
+          <div style={{ fontSize: 11, color: C.text, marginTop: 4 }}>At 12-19% engagement, @janisthe911 dramatically outperforms the industry average (~1-3%). Classic Porsche restoration content has a passionate, high-income niche audience. This account has serious growth potential with consistent posting.</div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {porscheStrategy.map((t, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", padding: 8, background: C.titaniumDim, borderRadius: 3 }}>
+              <div style={{ fontSize: 10, marginRight: 6, marginTop: 1 }}>☐</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: C.text }}>{t.task}</div>
+                <div style={{ fontSize: 8, color: t.impact === "HIGH" ? C.amber : C.muted }}>{t.impact} IMPACT</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Revenue Projections */}
+      <div style={card}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.titanium, letterSpacing: 1, marginBottom: 12 }}>COMBINED INSTAGRAM REVENUE PROJECTIONS</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+          {[
+            { period: "Current", followers: "3,132", revenue: "$0/mo" },
+            { period: "Month 3", followers: "5,000", revenue: "$50-100/mo" },
+            { period: "Month 6", followers: "8,000", revenue: "$150-300/mo" },
+            { period: "Month 9", followers: "12,000", revenue: "$300-600/mo" },
+            { period: "Month 12", followers: "18,000+", revenue: "$500-1,000/mo" },
+          ].map((p, i) => (
+            <div key={i} style={{ ...cardInner, textAlign: "center" }}>
+              <div style={{ fontSize: 10, color: C.muted, letterSpacing: 1 }}>{p.period}</div>
+              <div style={{ fontSize: 16, fontWeight: 900, color: C.white, marginTop: 4 }}>{p.followers}</div>
+              <div style={{ fontSize: 8, color: C.muted }}>followers</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.green, marginTop: 4 }}>{p.revenue}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB: FACEBOOK STRATEGY
+// ═══════════════════════════════════════════════════════
+function FacebookStrategyTab() {
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      {/* Header */}
+      <div style={{ ...card, borderLeft: `3px solid ${C.amber}` }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: C.white, letterSpacing: 1 }}>FACEBOOK REVIVAL STRATEGY</div>
+            <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>It's Pronounced VA Guh · 732 followers · Last post: Nov 14, 2025</div>
+          </div>
+          <div style={{ fontSize: 11, color: C.red, background: C.redDim, padding: "4px 10px", borderRadius: 3 }}>INACTIVE 4 MONTHS</div>
+        </div>
+      </div>
+
+      {/* Current State */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        {[
+          { label: "Followers", value: "732", icon: "👥", color: C.titanium },
+          { label: "Last Post", value: "Nov 14", icon: "📅", color: C.red },
+          { label: "Revenue", value: "$0", icon: "💰", color: C.amber },
+          { label: "Status", value: "Dormant", icon: "💤", color: C.red },
+        ].map((k, i) => (
+          <div key={i} style={{ ...cardInner, textAlign: "center" }}>
+            <div style={{ fontSize: 18 }}>{k.icon}</div>
+            <div style={{ fontSize: 22, fontWeight: 900, color: k.color, marginTop: 4 }}>{k.value}</div>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, marginTop: 2 }}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Diagnosis */}
+      <div style={{ ...card, borderLeft: `2px solid ${C.red}` }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.red, letterSpacing: 1, marginBottom: 10 }}>DIAGNOSIS: WHY FACEBOOK IS UNDERPERFORMING</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {[
+            { issue: "4 months inactive — algorithm has deprioritized the page", fix: "Resume posting 3x/week with Reels to re-enter the feed" },
+            { issue: "No monetization features enabled", fix: "Enable Facebook Stars and in-stream ads when eligible" },
+            { issue: "No Facebook Group for community building", fix: "Create \"VAGUH Garage\" group for VAG enthusiasts" },
+            { issue: "No cross-posting pipeline from YouTube/TikTok", fix: "Auto-share YouTube uploads and cross-post TikTok Reels" },
+          ].map((d, i) => (
+            <div key={i} style={{ ...cardInner, borderLeft: `2px solid ${C.amber}` }}>
+              <div style={{ fontSize: 10, color: C.red, fontWeight: 700 }}>ISSUE</div>
+              <div style={{ fontSize: 10, color: C.text, marginBottom: 6 }}>{d.issue}</div>
+              <div style={{ fontSize: 10, color: C.green, fontWeight: 700 }}>FIX</div>
+              <div style={{ fontSize: 10, color: C.text }}>{d.fix}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Strategy */}
+      <div style={card}>
+        <div style={{ fontSize: 15, fontWeight: 900, color: C.white, letterSpacing: 1, marginBottom: 16 }}>REVIVAL ROADMAP</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {[
+            { phase: "Phase 1: Reactivate (Weeks 1-4)", color: C.red, tasks: [
+              "Resume posting 3x/week (Reels + Photo posts)",
+              "Cross-post TikTok Reels to FB with native captions",
+              "Share every new YouTube video with a teaser clip",
+              "Update page info: add website, merch link, affiliate links",
+              "Pin a welcome post with links to all platforms",
+            ]},
+            { phase: "Phase 2: Community (Months 2-3)", color: C.amber, tasks: [
+              "Create 'VAGUH Garage' Facebook Group",
+              "Post polls: 'Stage 2 or Stage 3?' type engagement posts",
+              "Share behind-the-scenes garage content exclusively on FB",
+              "Go Live on FB simultaneously with TikTok LIVE",
+              "Invite YouTube commenters to join the FB community",
+            ]},
+            { phase: "Phase 3: Monetize (Months 4-6)", color: C.green, tasks: [
+              "Enable Facebook Stars for fan support during Lives",
+              "Apply for in-stream ads when eligible (10K followers)",
+              "Use FB Marketplace for local car parts/merch sales",
+              "Create FB Events for local car meets (drives IRL community)",
+              "Leverage group for affiliate product recommendations",
+            ]},
+          ].map((phase, pi) => (
+            <div key={pi} style={{ ...cardInner, borderTop: `3px solid ${phase.color}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: phase.color, marginBottom: 10 }}>{phase.phase}</div>
+              {phase.tasks.map((t, ti) => (
+                <div key={ti} style={{ display: "flex", alignItems: "flex-start", marginBottom: 6 }}>
+                  <div style={{ fontSize: 10, marginRight: 6, marginTop: 1 }}>☐</div>
+                  <div style={{ fontSize: 10, color: C.text }}>{t}</div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Priority Assessment */}
+      <div style={{ ...card, background: `linear-gradient(145deg, ${C.amberDim} 0%, rgba(0,0,0,0.4) 100%)` }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.amber, letterSpacing: 1, marginBottom: 8 }}>PRIORITY ASSESSMENT</div>
+        <div style={{ fontSize: 11, color: C.text, lineHeight: 1.6 }}>
+          Facebook should be your <span style={{ color: C.amber, fontWeight: 700 }}>LOWEST priority</span> among all platforms. Focus energy on TikTok (path to monetization at 10K) and Instagram (strong engagement + Reels growth) first. Use Facebook primarily as a cross-posting destination and community hub via a Group. The 732 followers are a decent base — the algorithm will reward consistent Reels content once you resume posting.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 12 }}>
+          {[
+            { platform: "TikTok", priority: "1st", color: C.red, reason: "10K = monetization unlock" },
+            { platform: "Instagram", priority: "2nd", color: C.red, reason: "Best engagement + Reels" },
+            { platform: "YouTube", priority: "3rd", color: C.amber, reason: "Already monetized, optimize" },
+            { platform: "Facebook", priority: "4th", color: C.titanium, reason: "Cross-post + community" },
+          ].map((p, i) => (
+            <div key={i} style={{ ...cardInner, textAlign: "center", borderTop: `2px solid ${p.color}` }}>
+              <div style={{ fontSize: 14, fontWeight: 900, color: p.color }}>{p.priority}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: C.white, marginTop: 2 }}>{p.platform}</div>
+              <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>{p.reason}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// TAB: WEBSITE & MERCH STRATEGY
+// ═══════════════════════════════════════════════════════
+function WebsiteMerchTab() {
+  return (
+    <div style={{ display: "grid", gap: 16 }}>
+      {/* Header */}
+      <div style={{ ...card, borderLeft: `3px solid ${C.green}` }}>
+        <div style={{ fontSize: 22, fontWeight: 900, color: C.white, letterSpacing: 1 }}>WEBSITE & MERCH REVENUE STRATEGY</div>
+        <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>vaguh.com · Squarespace · 6 pages · 15 products (7 VAGUH-branded, 6 Spektrum Only) · Updated 3/12/2026</div>
+      </div>
+
+      {/* Current Website Audit */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={card}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.titanium, letterSpacing: 1, marginBottom: 12 }}>CURRENT SITE AUDIT</div>
+          {[
+            { page: "Home", status: "NEEDS WORK", note: "Layout OK but huge white gap between YouTube embeds and blog/merch section. Social links (FB, IG, YT, TikTok) all working.", color: C.amber },
+            { page: "Merch", status: "UPDATED ✓", note: "15 products now properly categorized: 7 VAGUH-branded (t-shirts, caps, tank top) + 6 Spektrum Only. Category nav tabs active for easy browsing.", color: C.green },
+            { page: "Tune Data", status: "NEW ✓", note: "Dedicated page created with interactive tune data — Stage 1 (395 HP), Stage 2 (440 HP), Stage 3 (650+ HP). Added to main navigation.", color: C.green },
+            { page: "Project Cars", status: "NEEDS WORK", note: "4 cars: S5, Golf R, 911T, RS6. Golf R images broken. Tab title says 'Services 2'. No @janisthe911 IG link on Porsche.", color: C.amber },
+            { page: "Partners", status: "UPDATED ✓", note: "4 partners — all with descriptions: ROWE, Achtuning, IE, 034 Motorsport. BadgeSkins removed (no longer partnered).", color: C.green },
+            { page: "Blog", status: "REFRESHED ✓", note: "15 posts total — 5 fresh articles published 3/12/2026 covering S5 build, Stage 3 turbo, Porsche restoration, audio upgrade, and community Q&A.", color: C.green },
+          ].map((p, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", padding: 8, marginBottom: 6, background: C.titaniumDim, borderRadius: 3, borderLeft: `2px solid ${p.color}` }}>
+              <div style={{ width: 80 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: C.white }}>{p.page}</div>
+                <div style={{ fontSize: 8, fontWeight: 700, color: p.color }}>{p.status}</div>
+              </div>
+              <div style={{ flex: 1, fontSize: 10, color: C.text }}>{p.note}</div>
+            </div>
+          ))}
+        </div>
+
+        <div style={card}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.green, letterSpacing: 1, marginBottom: 12 }}>MERCH STORE — RESTRUCTURED ✓</div>
+          <div style={{ padding: 12, background: "rgba(0,200,83,0.08)", borderRadius: 3, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.green }}>Updated: 7 VAGUH Products + 6 Spektrum Only — Category Tabs Active</div>
+            <div style={{ fontSize: 10, color: C.text, marginTop: 4 }}>Merch page restructured with category navigation tabs. Visitors can now easily browse "It's Pronounced VAGuh" merch (t-shirts, caps, tank tops) separately from "Spektrum Only Merch" (stickers, cards).</div>
+          </div>
+          {[
+            { product: "VAGUH T-Shirts (2 styles)", price: "FROM $26", status: "ACTIVE", color: C.green },
+            { product: "VAGUH Trucker Caps (3 styles)", price: "$25.99-$28", status: "ACTIVE", color: C.green },
+            { product: "VAGUH Tank Top + Unisex Tee", price: "FROM $22", status: "ACTIVE", color: C.green },
+          ].map((p, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: `1px solid ${C.cardBorder}` }}>
+              <div style={{ fontSize: 10, color: C.text }}>{p.product}</div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <div style={{ fontSize: 10, color: C.white }}>{p.price}</div>
+                <div style={{ fontSize: 8, fontWeight: 700, color: p.color }}>{p.status}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Merch Strategy */}
+      <div style={card}>
+        <div style={{ fontSize: 15, fontWeight: 900, color: C.white, letterSpacing: 1, marginBottom: 16 }}>MERCH LAUNCH STRATEGY — VAGUH BRANDED PRODUCTS</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {[
+            { tier: "Tier 1: Quick Wins", color: C.green, items: [
+              { product: "VAGUH Logo T-Shirt (Audi rally livery colorway)", price: "$28-35", margin: "~60%", note: "Print-on-demand via Printful/Printify" },
+              { product: "VAGUH Sticker Pack (logo + car silhouettes)", price: "$8-12", margin: "~70%", note: "Low cost, high impulse buy" },
+              { product: "VAGUH Logo Hat (snapback/dad hat)", price: "$25-30", margin: "~55%", note: "Car community staple merch" },
+              { product: "VAGuh Car Air Freshener", price: "$5-8", margin: "~80%", note: "Novelty, cheap, high margin" },
+            ]},
+            { tier: "Tier 2: Premium", color: C.amber, items: [
+              { product: "VAGUH Garage Banner (2x5ft)", price: "$35-45", margin: "~50%", note: "For the garage/man cave" },
+              { product: "VAGUH Hoodie (heavyweight)", price: "$45-55", margin: "~55%", note: "Cold weather must-have" },
+              { product: "VAGUH License Plate Frame", price: "$15-20", margin: "~65%", note: "Always visible, brand awareness" },
+              { product: "VAGUH Mod Tool Roll / Pouch", price: "$25-35", margin: "~50%", note: "Practical + branded" },
+            ]},
+            { tier: "Tier 3: Collabs", color: C.red, items: [
+              { product: "VAGUH x 034 Motorsport custom badge set", price: "$20-30", margin: "~40%", note: "Partner collab, shared promo" },
+              { product: "VAGUH x IE limited edition shirt", price: "$35-45", margin: "~45%", note: "Co-branded with sponsor" },
+              { product: "VAGUH Project Car Poster prints", price: "$15-25", margin: "~70%", note: "S5, Golf R, Porsche 911 builds" },
+              { product: "VAGUH Mystery Box (stickers, air freshener, hat)", price: "$40-50", margin: "~55%", note: "YouTube unboxing content" },
+            ]},
+          ].map((tier, ti) => (
+            <div key={ti} style={{ ...cardInner, borderTop: `3px solid ${tier.color}` }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: tier.color, marginBottom: 10 }}>{tier.tier}</div>
+              {tier.items.map((item, ii) => (
+                <div key={ii} style={{ marginBottom: 10, paddingBottom: 8, borderBottom: `1px solid ${C.cardBorder}` }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: C.white }}>{item.product}</div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 2 }}>
+                    <div style={{ fontSize: 9, color: C.green }}>{item.price}</div>
+                    <div style={{ fontSize: 9, color: C.amber }}>Margin: {item.margin}</div>
+                  </div>
+                  <div style={{ fontSize: 8, color: C.muted, marginTop: 2 }}>{item.note}</div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Blog SEO Strategy */}
+      <div style={card}>
+        <div style={{ fontSize: 15, fontWeight: 900, color: C.white, letterSpacing: 1, marginBottom: 4 }}>BLOG SEO STRATEGY — UNTAPPED GOLDMINE</div>
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>Blog refreshed with 15 posts (5 new as of 3/12/2026). Next step: add affiliate links to existing posts and create SEO-optimized articles targeting high-traffic keywords below.</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          {[
+            { title: "Audi B9 S5 Stage 3 Build Guide - Every Mod Explained", seo: "audi s5 stage 3 build, b9 s5 mods", traffic: "500-1K/mo", revenue: "Affiliate links to every part" },
+            { title: "VW MK7 Golf R Complete Mod List (2024 Updated)", seo: "mk7 golf r mods, golf r mod list", traffic: "800-1.5K/mo", revenue: "Amazon + IE affiliate links" },
+            { title: "Best Speakers for Audi A4/S4/A5/S5 - B&O Upgrade Guide", seo: "audi speaker upgrade, b&o replacement", traffic: "300-600/mo", revenue: "Amazon affiliate (highest RPM content)" },
+            { title: "1973 Porsche 911T Restoration Cost Breakdown", seo: "porsche 911 restoration cost", traffic: "200-400/mo", revenue: "Parts affiliate + YouTube cross-link" },
+            { title: "IE Intake vs APR Intake vs 034 Intake - Honest Comparison", seo: "ie vs apr intake audi", traffic: "400-800/mo", revenue: "Direct affiliate links to each" },
+            { title: "How to Choose Your First VW/Audi Performance Mod", seo: "first audi mod, beginner vw mods", traffic: "300-500/mo", revenue: "Amazon + partner links" },
+          ].map((post, i) => (
+            <div key={i} style={{ ...cardInner, borderLeft: `2px solid ${C.green}` }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: C.white }}>{post.title}</div>
+              <div style={{ fontSize: 9, color: C.muted, marginTop: 2 }}>Keywords: {post.seo}</div>
+              <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                <div style={{ fontSize: 9, color: C.green }}>Est. traffic: {post.traffic}</div>
+                <div style={{ fontSize: 9, color: C.amber }}>Revenue: {post.revenue}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Website Improvements */}
+      <div style={card}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.titanium, letterSpacing: 1, marginBottom: 12 }}>WEBSITE QUICK WINS</div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {[
+            { task: "✅ Removed BadgeSkins from Partners page (no longer partnered) — DONE", impact: "HIGH", effort: "LOW" },
+            { task: "✅ Added 034 Motorsport description on Partners page — DONE", impact: "HIGH", effort: "LOW" },
+            { task: "✅ Published 5 fresh blog posts (S5 build, Stage 3 turbo, Porsche, audio, live Q&A) — DONE", impact: "HIGH", effort: "MED" },
+            { task: "✅ Created dedicated Tune Data page with Stage 1/2/3 specs — DONE", impact: "HIGH", effort: "MED" },
+            { task: "✅ Restructured Merch page — 7 VAGUH items + 6 Spektrum Only with category tabs — DONE", impact: "HIGH", effort: "MED" },
+            { task: "✅ TikTok social icon added to header — DONE", impact: "LOW", effort: "LOW" },
+            { task: "Fix broken Golf R images on Project Cars page", impact: "HIGH", effort: "LOW" },
+            { task: "Rename 'Services 2' page title → 'Project Cars' in Squarespace settings", impact: "MED", effort: "LOW" },
+            { task: "Add @janisthe911 IG link to Porsche 911 section on Project Cars", impact: "MED", effort: "LOW" },
+            { task: "Remove $500K joke product from Merch — hurts credibility", impact: "MED", effort: "LOW" },
+            { task: "Fix large empty white gap on Homepage between YouTube embeds and blog section", impact: "MED", effort: "LOW" },
+            { task: "Install Google Analytics to track website traffic", impact: "HIGH", effort: "LOW" },
+            { task: "Add email capture popup for newsletter (builds owned audience)", impact: "HIGH", effort: "MED" },
+          ].map((t, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", padding: 8, background: C.titaniumDim, borderRadius: 3 }}>
+              <div style={{ fontSize: 10, marginRight: 6, marginTop: 1 }}>{t.task.startsWith("✅") ? "" : "☐"}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, color: C.text }}>{t.task}</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                  <div style={{ fontSize: 8, color: t.impact === "HIGH" ? C.amber : C.muted }}>{t.impact} IMPACT</div>
+                  <div style={{ fontSize: 8, color: t.effort === "LOW" ? C.green : C.amber }}>{t.effort} EFFORT</div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Revenue Projections */}
+      <div style={card}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: C.titanium, letterSpacing: 1, marginBottom: 12 }}>WEBSITE & MERCH REVENUE PROJECTIONS</div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+          {[
+            { stream: "VAGUH Merch (launch)", current: "$0", m6: "$200-400/mo", m12: "$500-1,000/mo", color: C.red },
+            { stream: "Blog Affiliate Revenue", current: "$0", m6: "$50-100/mo", m12: "$200-400/mo", color: C.green },
+            { stream: "Project Cars Mod Links", current: "~$0", m6: "$30-60/mo", m12: "$80-150/mo", color: C.amber },
+            { stream: "Email Newsletter Sponsorships", current: "$0", m6: "$0", m12: "$100-200/mo", color: C.titanium },
+          ].map((s, i) => (
+            <div key={i} style={{ ...cardInner, borderTop: `2px solid ${s.color}`, textAlign: "center" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: s.color }}>{s.stream}</div>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 8, color: C.muted }}>CURRENT</div>
+                <div style={{ fontSize: 14, fontWeight: 900, color: C.red }}>{s.current}</div>
+              </div>
+              <div style={{ marginTop: 6 }}>
+                <div style={{ fontSize: 8, color: C.muted }}>6 MONTHS</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.amber }}>{s.m6}</div>
+              </div>
+              <div style={{ marginTop: 6 }}>
+                <div style={{ fontSize: 8, color: C.muted }}>12 MONTHS</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.green }}>{s.m12}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop: 12, textAlign: "center", padding: 10, background: C.greenDim, borderRadius: 3 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.green }}>TOTAL WEBSITE & MERCH POTENTIAL: $880-1,750/mo in 12 months</div>
+          <div style={{ fontSize: 10, color: C.text, marginTop: 2 }}>Combined with YouTube ($163/mo), TikTok ($500/mo), and Instagram ($500-1,000/mo) = $2,043-3,413/mo total across all platforms</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<VAGUHPerformanceTuningCenter />);
+function AffiliateRevenueTab() {
+  const s = amazonData.summary;
+  const kCards = [
+    { label: "Earnings (30d)", value: "$" + s.earnings.toFixed(2), icon: "\ud83d\udcb0", color: C.green },
+    { label: "Clicks", value: "" + s.clicks, icon: "\ud83d\uddb1", color: C.titanium },
+    { label: "Orders", value: "" + s.orders, icon: "\ud83d\udce6", color: C.amber },
+    { label: "Conversion", value: s.conversion + "%", icon: "\ud83d\udcca", color: C.red },
+    { label: "Product Revenue", value: "$" + s.totalRev.toFixed(0), icon: "\ud83d\uded2", color: C.green },
+    { label: "Shipped", value: "" + s.shipped, icon: "\u2705", color: C.green },
+  ];
+  return (
+    <div>
+      <div style={{ ...card, marginBottom: 16, borderLeft: "3px solid " + C.green, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.green, letterSpacing: 2, textTransform: "uppercase" }}>Amazon Associates Dashboard</h3>
+          <p style={{ margin: "4px 0 0", fontSize: 11, color: C.muted }}>Store ID: {amazonData.storeId} | Last updated: {amazonData.lastUpdated}</p>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 28, fontWeight: 900, color: C.green }}>${s.earnings.toFixed(2)}</div>
+          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1 }}>30-DAY EARNINGS</div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 16 }}>
+        {kCards.map((k, i) => (
+          <div key={i} style={{ ...cardInner, textAlign: "center", borderTop: "2px solid " + k.color }}>
+            <div style={{ fontSize: 16, marginBottom: 2 }}>{k.icon}</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: k.color }}>{k.value}</div>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 0.5, marginTop: 2 }}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div style={{ ...card, borderLeft: "3px solid " + C.titanium }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>Daily Clicks and Earnings</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <ComposedChart data={[...amazonData.daily].reverse()} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(192, 196, 204, 0.06)" />
+              <XAxis dataKey="d" tick={{ fill: C.muted, fontSize: 8 }} angle={-45} textAnchor="end" interval={2} />
+              <YAxis yAxisId="left" tick={{ fill: C.muted, fontSize: 9 }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: C.muted, fontSize: 9 }} />
+              <Tooltip contentStyle={tipStyle} />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              <Bar yAxisId="left" dataKey="c" name="Clicks" fill={C.titanium} opacity={0.6} radius={[2, 2, 0, 0]} />
+              <Line yAxisId="right" type="monotone" dataKey="e" name="Earnings ($)" stroke={C.green} strokeWidth={2} dot={{ fill: C.green, r: 2 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ ...card, borderLeft: "3px solid " + C.amber }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.amber, letterSpacing: 2, textTransform: "uppercase" }}>Monthly Earnings</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={[...amazonData.monthlyEarnings].reverse()} margin={{ top: 5, right: 10, left: 0, bottom: 40 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(192, 196, 204, 0.06)" />
+              <XAxis dataKey="m" tick={{ fill: C.muted, fontSize: 9 }} angle={-35} textAnchor="end" />
+              <YAxis tick={{ fill: C.muted, fontSize: 9 }} />
+              <Tooltip contentStyle={tipStyle} formatter={(v) => "$" + v.toFixed(2)} />
+              <Bar dataKey="e" name="Earnings" radius={[3, 3, 0, 0]}>
+                {[...amazonData.monthlyEarnings].reverse().map((entry, idx) => (
+                  <Cell key={idx} fill={entry.e >= 0 ? C.green : C.red} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ ...card, borderLeft: "3px solid " + C.green }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.green, letterSpacing: 2, textTransform: "uppercase" }}>Payment History</h3>
+          {amazonData.payments.map((p, i) => (
+            <div key={i} style={{ padding: "8px 0", borderBottom: "1px solid rgba(192,196,204,0.04)", display: "flex", justifyContent: "space-between", fontSize: 12, alignItems: "center" }}>
+              <span style={{ color: C.text }}>{p.date}</span>
+              <span style={{ color: C.green, fontWeight: 700 }}>${p.amount.toFixed(2)}</span>
+              <span style={{ fontSize: 9, color: C.muted }}>{p.detail}</span>
+            </div>
+          ))}
+          <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(45,212,160,0.06)", borderRadius: 4, fontSize: 11 }}>
+            <span style={{ fontWeight: 700, color: C.green }}>Total Paid (6 mo): </span>
+            <span style={{ color: C.text }}>${(23.40 + 16.84 + 32.48 + 16.76).toFixed(2)}</span>
+          </div>
+        </div>
+        <div style={{ ...card, borderLeft: "3px solid " + C.red }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.red, letterSpacing: 2, textTransform: "uppercase" }}>Affiliate Programs</h3>
+          {[
+            { name: "Amazon Associates", tag: "vaguh-20", status: "Active", color: C.green, earn: "$26/30d" },
+            { name: "Integrated Engineering", tag: "VAGUH code", status: "Active", color: C.green, earn: "Track via IE" },
+            { name: "BadgeSkins", tag: "VAGuh15", status: "Active", color: C.green, earn: "Track via site" },
+            { name: "Obsessed Garage", tag: "bit.ly link", status: "Active", color: C.green, earn: "Track via OG" },
+            { name: "Achtuning", tag: "Direct link", status: "Active", color: C.amber, earn: "No tracking" },
+            { name: "034 Motorsport", tag: "Sponsor", status: "Mention", color: C.titanium, earn: "-" },
+            { name: "OBDeleven", tag: "None yet", status: "Outreach", color: C.muted, earn: "-" },
+            { name: "FCP Euro / ECS", tag: "None yet", status: "Apply", color: C.muted, earn: "-" },
+          ].map((p, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid rgba(192,196,204,0.04)", fontSize: 11 }}>
+              <span style={{ color: C.text, fontWeight: 600, flex: "1 1 110px" }}>{p.name}</span>
+              <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 3, background: p.status === "Active" ? C.greenDim : "rgba(113,113,122,0.1)", color: p.color, flex: "0 0 60px", textAlign: "center" }}>{p.status}</span>
+              <span style={{ color: p.earn.startsWith("$") ? C.green : C.muted, fontWeight: 600, fontSize: 10, flex: "0 0 80px", textAlign: "right" }}>{p.earn}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SponsorshipKitTab() {
+  const m = channelMetrics;
+  return (
+    <div>
+      <div style={{ ...card, marginBottom: 16, borderLeft: "3px solid " + C.red }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.red, letterSpacing: 2, textTransform: "uppercase" }}>VAGUH Sponsorship Rate Card</h3>
+            <p style={{ margin: "4px 0 0", fontSize: 11, color: C.muted }}>Ready-to-send metrics for brand partnerships</p>
+          </div>
+          <div style={{ fontSize: 11, color: C.green, background: C.greenDim, padding: "4px 10px", borderRadius: 3 }}>SEND TO SPONSORS</div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginBottom: 16 }}>
+        {[
+          { label: "Subscribers", value: m.subscribers.toLocaleString(), color: C.red },
+          { label: "Total Views", value: (m.totalViews / 1e6).toFixed(1) + "M", color: C.titanium },
+          { label: "Monthly Views", value: (m.monthlyViews / 1e3).toFixed(0) + "K", color: C.green },
+          { label: "Watch Hours", value: m.watchHours.toLocaleString(), color: C.amber },
+        ].map((k, i) => (
+          <div key={i} style={{ ...cardInner, textAlign: "center", borderTop: "2px solid " + k.color }}>
+            <div style={{ fontSize: 22, fontWeight: 900, color: k.color }}>{k.value}</div>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1, marginTop: 2 }}>{k.label}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div style={{ ...card, borderLeft: "3px solid " + C.titanium }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>Audience Demographics</h3>
+          {[
+            { label: "Male", value: m.demographics.male + "%" },
+            { label: "Age 25-34", value: m.demographics.age2534 + "%" },
+            { label: "Age 35-44", value: m.demographics.age3544 + "%" },
+            { label: "United States", value: m.demographics.usa + "%" },
+            { label: "Niche", value: m.niche },
+          ].map((d, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid " + C.cardBorder, fontSize: 11 }}>
+              <span style={{ color: C.muted }}>{d.label}</span>
+              <span style={{ color: C.white, fontWeight: 700 }}>{d.value}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ ...card, borderLeft: "3px solid " + C.green }}>
+          <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.green, letterSpacing: 2, textTransform: "uppercase" }}>Performance Metrics</h3>
+          {[
+            { label: "Avg View Duration", value: m.avgViewPct + "%" },
+            { label: "Avg RPM", value: "$" + m.avgRPM },
+            { label: "Top RPM", value: "$" + m.topRPM },
+            { label: "Affiliate Conversion", value: m.affiliateConversion + "%" },
+            { label: "Avg Views (Top 20)", value: (m.avgViewsTop20 / 1e3).toFixed(0) + "K" },
+          ].map((d, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid " + C.cardBorder, fontSize: 11 }}>
+              <span style={{ color: C.muted }}>{d.label}</span>
+              <span style={{ color: C.green, fontWeight: 700 }}>{d.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div style={card}>
+        <h3 style={{ margin: "0 0 16px", fontSize: 12, fontWeight: 800, color: C.amber, letterSpacing: 2, textTransform: "uppercase" }}>Sponsorship Packages</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+          {[
+            { tier: "Integration", price: "$200-400", desc: "30-60 second mention in a relevant build video", includes: ["Product mention with B-roll", "Link in description", "Pinned comment"], color: C.titanium },
+            { tier: "Dedicated Video", price: "$500-800", desc: "Full video featuring the sponsor's product as the main focus", includes: ["Full install/review video", "Description links + affiliate code", "Community post + Stories", "Thumbnail appearance"], color: C.amber },
+            { tier: "Series Sponsor", price: "$1,500-2,500", desc: "3-video build series with consistent branding", includes: ["3 dedicated videos", "Intro/outro brand callout", "All description links", "Social cross-promotion", "Exclusivity in category"], color: C.red },
+          ].map((pkg, i) => (
+            <div key={i} style={{ ...cardInner, borderTop: "3px solid " + pkg.color }}>
+              <div style={{ fontSize: 13, fontWeight: 900, color: pkg.color }}>{pkg.tier}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: C.white, margin: "8px 0" }}>{pkg.price}</div>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 8 }}>{pkg.desc}</div>
+              {pkg.includes.map((inc, ii) => (
+                <div key={ii} style={{ fontSize: 10, color: C.text, padding: "3px 0", borderBottom: "1px solid " + C.cardBorder }}>✓ {inc}</div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
+
+
+ReactDOM.createRoot(document.getElementById("root")).render(<VAGUHPerformanceTuningCenter />);
+</script>
+</body>
+</html>
