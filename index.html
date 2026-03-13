@@ -276,8 +276,8 @@ const tipStyle = {
 
 const PIE_COLORS = [C.red, C.green, "#5b8def", C.gold, "#a78bfa", "#2dd4bf"];
 
-// ── KPIs (mutable global — updated when live data is pulled) ──
-var kpis = [
+// ── KPIs (window global — updated when live data is pulled) ──
+window.kpis = [
     { label: "Subscribers", value: "9,040", icon: "👥", color: C.titanium, trend: "", down: false },
     { label: "Total Views", value: "2.1M", icon: "👁", color: C.green, trend: "", down: false },
     { label: "Watch Hours", value: "17,031", icon: "⏱", color: C.titanium, trend: "", down: false },
@@ -290,7 +290,7 @@ function fmtNum(n) { return n >= 1000000 ? (n/1000000).toFixed(1) + 'M' : n.toLo
 
 function updateKpisFromLive(d) {
   const moRev = d.monthlyRevenue && d.monthlyRevenue.length > 0 ? d.monthlyRevenue[0].revenue : 0;
-  kpis = [
+  window.kpis = [
     { label: "Subscribers", value: fmtNum(d.subscribers), icon: "👥", color: C.titanium, trend: "", down: false },
     { label: "Total Views", value: fmtNum(d.totalViews), icon: "👁", color: C.green, trend: "", down: false },
     { label: "Watch Hours", value: fmtNum(d.watchHours), icon: "⏱", color: C.titanium, trend: "", down: false },
@@ -298,8 +298,8 @@ function updateKpisFromLive(d) {
     { label: "Avg View %", value: d.avgViewPct + "%", icon: "🎯", color: C.green, trend: "", down: false },
     { label: "Videos", value: fmtNum(d.videoCount), icon: "🎬", color: C.red, trend: "", down: false },
   ];
-  channelMetrics = {
-    ...channelMetrics,
+  window.channelMetrics = {
+    ...window.channelMetrics,
     subscribers: d.subscribers,
     totalViews: d.totalViews,
     watchHours: d.watchHours,
@@ -564,7 +564,7 @@ const amazonData = {
   ],
 };
 
-var channelMetrics = {
+window.channelMetrics = {
   subscribers: 9045,
   totalViews: 2100000,
   monthlyViews: 45000,
@@ -737,7 +737,7 @@ function ActionPlanTab() {
 
       {/* KPI Strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 6, marginBottom: 20 }}>
-        {kpis.map((k, i) => (
+        {window.kpis.map((k, i) => (
           <div key={i} style={{ ...cardInner, textAlign: "center", padding: 12 }}>
             <div style={{ fontSize: 18 }}>{k.icon}</div>
             <div style={{ fontSize: 18, fontWeight: 900, color: k.color, marginTop: 2 }}>{k.value}</div>
@@ -1129,7 +1129,7 @@ function OverviewTab() {
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 8, marginBottom: 24 }}>
-        {kpis.map((k, i) => (
+        {window.kpis.map((k, i) => (
           <div key={i} style={{ ...cardInner, textAlign: "center" }}>
             <div style={{ fontSize: 22, marginBottom: 4 }}>{k.icon}</div>
             <div style={{ fontSize: 20, fontWeight: 900, color: k.color }}>{k.value}</div>
@@ -2236,7 +2236,7 @@ function AffiliateRevenueTab() {
 }
 
 function SponsorshipKitTab() {
-  const m = channelMetrics;
+  const m = window.channelMetrics;
   return (
     <div>
       <div style={{ ...card, marginBottom: 16, borderLeft: "3px solid " + C.red }}>
