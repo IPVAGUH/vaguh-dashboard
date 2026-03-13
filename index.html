@@ -121,8 +121,9 @@ async function pullYouTubeData(onStatus) {
   const mStartYear = mNow.getFullYear() + Math.floor(mStartMonth / 12);
   const mStartMo = ((mStartMonth % 12) + 12) % 12; // handle negative
   const mStartStr = mStartYear + '-' + String(mStartMo + 1).padStart(2, '0') + '-01';
+  const mEndStr = mNow.getFullYear() + '-' + String(mNow.getMonth() + 1).padStart(2, '0') + '-01';
   const monthlyResp = await ytFetch(
-    `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${mStartStr}&endDate=${end}&metrics=views,estimatedMinutesWatched,estimatedRevenue&dimensions=month&sort=-month`, token
+    `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${mStartStr}&endDate=${mEndStr}&metrics=views,estimatedMinutesWatched,estimatedRevenue&dimensions=month&sort=-month`, token
   );
   const monthlyRows = (monthlyResp.rows || []).map(r => ({
     month: r[0], views: r[1], minutes: r[2], revenue: r[3]
