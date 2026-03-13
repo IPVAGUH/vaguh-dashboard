@@ -58,6 +58,116 @@
 <script crossorigin src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
 <script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
 <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
+<script>
+// ── YouTube API Live Data Integration ──
+const YT_CLIENT_ID = '79497155849-kjpf9tuag8hibt5c9fc80qlkad1on8tk.apps.googleusercontent.com';
+const YT_SCOPES = 'https://www.googleapis.com/auth/youtube.readonly https://www.googleapis.com/auth/yt-analytics.readonly https://www.googleapis.com/auth/yt-analytics-monetary.readonly';
+
+let _ytAccessToken = null;
+
+function ytAuth() {
+  return new Promise((resolve, reject) => {
+    if (_ytAccessToken) { resolve(_ytAccessToken); return; }
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: YT_CLIENT_ID,
+      scope: YT_SCOPES,
+      callback: (resp) => {
+        if (resp.error) { reject(resp.error); return; }
+        _ytAccessToken = resp.access_token;
+        resolve(_ytAccessToken);
+      },
+    });
+    client.requestAccessToken();
+  });
+}
+
+async function ytFetch(url, token) {
+  const r = await fetch(url, { headers: { Authorization: 'Bearer ' + token } });
+  if (!r.ok) throw new Error('API error: ' + r.status + ' ' + (await r.text()));
+  return r.json();
+}
+
+async function pullYouTubeData(onStatus) {
+  onStatus('Authenticating with Google...');
+  const token = await ytAuth();
+
+  // 1. Channel info
+  onStatus('Pulling channel stats...');
+  const chResp = await ytFetch('https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,contentDetails&mine=true', token);
+  const ch = chResp.items[0];
+  const subs = parseInt(ch.statistics.subscriberCount || 0);
+  const totalViews = parseInt(ch.statistics.viewCount || 0);
+  const videoCount = parseInt(ch.statistics.videoCount || 0);
+  const channelId = ch.id;
+
+  // 2. Analytics — lifetime (365 days)
+  onStatus('Pulling analytics (revenue, watch hours)...');
+  const end = new Date().toISOString().slice(0, 10);
+  const start = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+  const analyticsResp = await ytFetch(
+    `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${start}&endDate=${end}&metrics=views,estimatedMinutesWatched,estimatedRevenue,averageViewPercentage,subscribersGained,subscribersLost`, token
+  );
+  const aRow = analyticsResp.rows && analyticsResp.rows[0] ? analyticsResp.rows[0] : [0,0,0,0,0,0];
+  const watchMinutes = aRow[1] || 0;
+  const watchHours = Math.round(watchMinutes / 60);
+  const revenue = aRow[2] || 0;
+  const avgViewPct = aRow[3] || 0;
+
+  // 3. Monthly revenue breakdown (last 6 months)
+  onStatus('Pulling monthly revenue...');
+  const mStart = new Date(Date.now() - 180 * 86400000);
+  mStart.setDate(1);
+  const monthlyResp = await ytFetch(
+    `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${mStart.toISOString().slice(0,10)}&endDate=${end}&metrics=views,estimatedMinutesWatched,estimatedRevenue&dimensions=month&sort=-month`, token
+  );
+  const monthlyRows = (monthlyResp.rows || []).map(r => ({
+    month: r[0], views: r[1], minutes: r[2], revenue: r[3]
+  }));
+
+  // 4. Traffic sources
+  onStatus('Pulling traffic sources...');
+  const trafficResp = await ytFetch(
+    `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${start}&endDate=${end}&metrics=views,estimatedMinutesWatched&dimensions=insightTrafficSourceType&sort=-views`, token
+  );
+  const trafficRows = (trafficResp.rows || []).map(r => ({
+    source: r[0], views: r[1], minutes: r[2]
+  }));
+
+  // 5. Top videos by revenue
+  onStatus('Pulling top videos...');
+  const topVidsResp = await ytFetch(
+    `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${start}&endDate=${end}&metrics=views,estimatedMinutesWatched,estimatedRevenue,averageViewDuration&dimensions=video&sort=-estimatedRevenue&maxResults=20`, token
+  );
+  const topVideoIds = (topVidsResp.rows || []).map(r => r[0]);
+  let videoTitleMap = {};
+  if (topVideoIds.length > 0) {
+    const vidsResp = await ytFetch(
+      `https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${topVideoIds.join(',')}`, token
+    );
+    (vidsResp.items || []).forEach(v => { videoTitleMap[v.id] = v.snippet.title; });
+  }
+  const topVideos = (topVidsResp.rows || []).map(r => ({
+    id: r[0], title: videoTitleMap[r[0]] || r[0],
+    views: r[1], minutes: r[2], revenue: r[3], avgDuration: r[4]
+  }));
+
+  onStatus('Done! Updating dashboard...');
+
+  return {
+    subscribers: subs,
+    totalViews: totalViews,
+    videoCount: videoCount,
+    watchHours: watchHours,
+    revenue: Math.round(revenue * 100) / 100,
+    avgViewPct: Math.round(avgViewPct * 10) / 10,
+    monthlyRevenue: monthlyRows,
+    trafficSources: trafficRows,
+    topVideos: topVideos,
+    pulledAt: new Date().toISOString(),
+  };
+}
+</script>
 </head>
 <body>
 
@@ -166,8 +276,8 @@ const tipStyle = {
 
 const PIE_COLORS = [C.red, C.green, "#5b8def", C.gold, "#a78bfa", "#2dd4bf"];
 
-// ── KPIs ──
-const kpis = [
+// ── KPIs (static defaults, overridden by live data) ──
+const defaultKpis = [
     { label: "Subscribers", value: "9,040", icon: "👥", color: C.titanium, trend: "", down: false },
     { label: "Total Views", value: "2.1M", icon: "👁", color: C.green, trend: "", down: false },
     { label: "Watch Hours", value: "17,031", icon: "⏱", color: C.titanium, trend: "", down: false },
@@ -175,6 +285,20 @@ const kpis = [
     { label: "Avg View %", value: "22.4%", icon: "🎯", color: C.green, trend: "", down: false },
     { label: "Videos", value: "194", icon: "🎬", color: C.red, trend: "", down: false },
   ];
+
+function fmtNum(n) { return n >= 1000000 ? (n/1000000).toFixed(1) + 'M' : n.toLocaleString(); }
+
+function buildLiveKpis(d) {
+  const moRev = d.monthlyRevenue && d.monthlyRevenue.length > 0 ? d.monthlyRevenue[0].revenue : 0;
+  return [
+    { label: "Subscribers", value: fmtNum(d.subscribers), icon: "👥", color: C.titanium, trend: "", down: false },
+    { label: "Total Views", value: fmtNum(d.totalViews), icon: "👁", color: C.green, trend: "", down: false },
+    { label: "Watch Hours", value: fmtNum(d.watchHours), icon: "⏱", color: C.titanium, trend: "", down: false },
+    { label: "Revenue", value: "$" + fmtNum(Math.round(d.revenue)), icon: "💰", color: C.amber, trend: "~$" + Math.round(moRev) + "/mo", down: false },
+    { label: "Avg View %", value: d.avgViewPct + "%", icon: "🎯", color: C.green, trend: "", down: false },
+    { label: "Videos", value: fmtNum(d.videoCount), icon: "🎬", color: C.red, trend: "", down: false },
+  ];
+}
 
 // ── CATEGORY DATA ──
 const categoryData = [
@@ -433,7 +557,7 @@ const amazonData = {
   ],
 };
 
-const channelMetrics = {
+const defaultChannelMetrics = {
   subscribers: 9045,
   totalViews: 2100000,
   monthlyViews: 45000,
@@ -459,31 +583,30 @@ function VAGUHPerformanceTuningCenter() {
   const [activeTab, setActiveTab] = useState("Action Plan");
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState("");
+  const [liveData, setLiveData] = useState(null);
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    setRefreshMsg("Pulling YouTube data...");
-    const es = new EventSource("/refresh");
-    es.onmessage = (e) => {
-      const d = JSON.parse(e.data);
-      if (d.message) setRefreshMsg(d.message);
-      if (d.step === "done") {
-        es.close();
-        if (d.status === "success") {
-          setRefreshMsg("Done! Reloading...");
-          setTimeout(() => window.location.reload(), 1200);
-        } else {
-          setRefreshMsg("Error: " + (d.message || "refresh failed"));
-          setTimeout(() => { setRefreshing(false); setRefreshMsg(""); }, 4000);
-        }
-      }
-    };
-    es.onerror = () => {
-      es.close();
-      setRefreshMsg("Server not running. Start with: python vaguh_server.py");
+    try {
+      const data = await pullYouTubeData((msg) => setRefreshMsg(msg));
+      setLiveData(data);
+      setRefreshMsg("Live data loaded!");
+      setTimeout(() => { setRefreshing(false); setRefreshMsg(""); }, 3000);
+    } catch (err) {
+      setRefreshMsg("Error: " + (err.message || err));
       setTimeout(() => { setRefreshing(false); setRefreshMsg(""); }, 5000);
-    };
+    }
   };
+
+  // Use live data for KPIs and channel metrics if available, otherwise defaults
+  const kpis = liveData ? buildLiveKpis(liveData) : defaultKpis;
+  const channelMetrics = liveData ? {
+    ...defaultChannelMetrics,
+    subscribers: liveData.subscribers,
+    totalViews: liveData.totalViews,
+    watchHours: liveData.watchHours,
+    avgViewPct: liveData.avgViewPct,
+  } : defaultChannelMetrics;
 
   return (
     <div style={{
@@ -535,6 +658,9 @@ function VAGUHPerformanceTuningCenter() {
             </button>
             {refreshMsg && (
               <span style={{ fontSize: 10, color: C.titanium, marginLeft: 4, fontStyle: "italic" }}>{refreshMsg}</span>
+            )}
+            {liveData && !refreshMsg && (
+              <span style={{ fontSize: 9, color: C.green, marginLeft: 4 }}>● Live — {new Date(liveData.pulledAt).toLocaleString()}</span>
             )}
           </div>
         </div>
