@@ -218,7 +218,7 @@ async function pullYouTubeData(onStatus) {
 
 <div id="root"></div>
 <script type="text/babel">
-const { useState } = React;
+const { useState, useEffect } = React;
 const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend, ComposedChart } = Recharts;
 
 
@@ -596,18 +596,43 @@ function VAGUHPerformanceTuningCenter() {
   const [refreshMsg, setRefreshMsg] = useState("");
   const [liveData, setLiveData] = useState(null);
 
+  // Load persisted live data on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('vaguh_live_data');
+      if (saved) {
+        const data = JSON.parse(saved);
+        updateKpisFromLive(data);
+        setLiveData(data);
+      }
+    } catch(e) {}
+  }, []);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
       const data = await pullYouTubeData((msg) => setRefreshMsg(msg));
       updateKpisFromLive(data);
       setLiveData(data);
-      setRefreshMsg("Live data loaded!");
+      localStorage.setItem('vaguh_live_data', JSON.stringify(data));
+      setRefreshMsg("Live data loaded & saved!");
       setTimeout(() => { setRefreshing(false); setRefreshMsg(""); }, 3000);
     } catch (err) {
       setRefreshMsg("Error: " + (err.message || err));
       setTimeout(() => { setRefreshing(false); setRefreshMsg(""); }, 5000);
     }
+  };
+
+  const handleDownloadData = () => {
+    const saved = localStorage.getItem('vaguh_live_data');
+    if (!saved) return;
+    const blob = new Blob([saved], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'vaguh_data_live.json';
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -663,6 +688,13 @@ function VAGUHPerformanceTuningCenter() {
             )}
             {liveData && !refreshMsg && (
               <span style={{ fontSize: 9, color: C.green, marginLeft: 4 }}>● Live — {new Date(liveData.pulledAt).toLocaleString()}</span>
+            )}
+            {liveData && (
+              <button onClick={handleDownloadData} title="Download live data as JSON" style={{
+                background: "transparent", color: C.titanium, border: `1px solid ${C.cardBorder}`,
+                borderRadius: 24, padding: "5px 12px", fontSize: 9, fontWeight: 700,
+                letterSpacing: 1.5, textTransform: "uppercase", cursor: "pointer", marginLeft: 6,
+              }}>↓ Save JSON</button>
             )}
           </div>
         </div>
@@ -1661,7 +1693,7 @@ function InstagramStrategyTab() {
     {
       handle: "@itspronounced_va_guh",
       name: "Main VAGUH Account",
-      posts: 628, followers: 2863, following: 1419,
+      posts: 628, followers: 2871, following: 1419,
       engagement: "1.7%", avgLikes: 46, avgComments: 2.3,
       category: "Cars",
       highlights: ["S5 Mods", "YouTube", "Superwrap", "R Mods"],
