@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAGUH Sponsorship Inbox Review</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a1a;
+    color: #e0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  /* Top stripe */
+  .topbar {
+    height: 5px;
+    background: linear-gradient(to right, #e53935 33%, #ffffff 33%, #ffffff 66%, #111111 66%);
+  }
+
+  header {
+    background: #111;
+    padding: 24px 32px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .header-left h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 0.5px;
+  }
+
+  .header-left p {
+    font-size: 13px;
+    color: #999;
+    margin-top: 4px;
+  }
+
+  .stats-bar {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-num {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .stat-num.green { color: #43a047; }
+  .stat-num.amber { color: #ffb300; }
+  .stat-num.red { color: #e53935; }
+
+  /* Filter bar */
+  .filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 32px;
+    background: #1f1f1f;
+    border-bottom: 1px solid #2a2a2a;
+    flex-wrap: wrap;
+  }
+
+  .filter-btn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid #444;
+    background: transparent;
+    color: #aaa;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .filter-btn:hover { border-color: #888; color: #fff; }
+  .filter-btn.active { background: #e53935; border-color: #e53935; color: #fff; }
+
+  .filter-label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+  }
+
+  /* Main grid */
+  .container {
+    padding: 28px 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .tier-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 32px 0 16px;
+  }
+
+  .tier-header:first-child { margin-top: 0; }
+
+  .tier-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    padding: 4px 12px;
+    border-radius: 4px;
+  }
+
+  .tier-1 .tier-label { background: #1b3a1e; color: #43a047; border: 1px solid #2d5c32; }
+  .tier-2 .tier-label { background: #3a2e0a; color: #ffb300; border: 1px solid #5c4a10; }
+  .tier-3 .tier-label { background: #3a1212; color: #e57373; border: 1px solid #5c2020; }
+
+  .tier-header .tier-desc {
+    font-size: 13px;
+    color: #666;
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+  }
+
+  /* Card */
+  .card {
+    background: #242424;
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+    position: relative;
+  }
+
+  .card:hover { border-color: rgba(255,255,255,0.15); }
+
+  .card.decided-reply { border-color: #43a047; }
+  .card.decided-hold  { border-color: #ffb300; }
+  .card.decided-pass  { border-color: #e53935; opacity: 0.6; }
+
+  .card-header {
+    padding: 16px 18px 12px;
+    border-bottom: 1px solid #2e2e2e;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .card-header-left { flex: 1; }
+
+  .brand-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  .brand-product {
+    font-size: 12px;
+    color: #90a4ae;
+    margin-top: 3px;
+  }
+
+  .fit-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 3px 9px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .fit-high    { background: #1b3a1e; color: #66bb6a; border: 1px solid #2d5c32; }
+  .fit-medium-high { background: #1f3020; color: #81c784; border: 1px solid #2e4e31; }
+  .fit-medium  { background: #2a2a14; color: #ffd54f; border: 1px solid #484810; }
+  .fit-low     { background: #3a1212; color: #ef9a9a; border: 1px solid #5c2020; }
+
+  .card-body {
+    padding: 14px 18px;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .meta-key {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #666;
+  }
+
+  .meta-val {
+    font-size: 12px;
+    color: #ccc;
+    font-weight: 500;
+  }
+
+  .legitimacy-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .legitimacy-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #666;
+    width: 70px;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 5px;
+    background: #333;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: linear-gradient(to right, #e53935, #ffb300, #43a047);
+    transition: width 0.4s ease;
+  }
+
+  .bar-score {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ccc;
+    width: 32px;
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .summary {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #bbb;
+    margin-bottom: 14px;
+  }
+
+  .flags {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .flag {
+    display: flex;
+    gap: 8px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .flag-icon {
+    flex-shrink: 0;
+    font-size: 13px;
+    margin-top: 1px;
+  }
+
+  .flag.green { color: #81c784; }
+  .flag.red   { color: #ef9a9a; }
+
+  .action-suggested {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #90a4ae;
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  .action-suggested strong {
+    color: #26c6da;
+    font-weight: 600;
+  }
+
+  /* Decision buttons */
+  .card-footer {
+    padding: 12px 18px;
+    border-top: 1px solid #2e2e2e;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .decision-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #555;
+    flex-shrink: 0;
+  }
+
+  .btn-group {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+  }
+
+  .btn {
+    flex: 1;
+    padding: 7px 10px;
+    border-radius: 5px;
+    border: 1px solid;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-reply {
+    background: transparent;
+    border-color: #43a047;
+    color: #43a047;
+  }
+  .btn-reply:hover, .btn-reply.active {
+    background: #43a047;
+    color: #fff;
+  }
+
+  .btn-hold {
+    background: transparent;
+    border-color: #ffb300;
+    color: #ffb300;
+  }
+  .btn-hold:hover, .btn-hold.active {
+    background: #ffb300;
+    color: #111;
+  }
+
+  .btn-pass {
+    background: transparent;
+    border-color: #555;
+    color: #888;
+  }
+  .btn-pass:hover, .btn-pass.active {
+    background: #333;
+    border-color: #e53935;
+    color: #e57373;
+  }
+
+  .decided-badge {
+    display: none;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    padding: 3px 10px;
+    border-radius: 4px;
+    margin-left: auto;
+  }
+
+  .decided-reply .decided-badge { display: inline-block; background: #1b3a1e; color: #43a047; border: 1px solid #2d5c32; }
+  .decided-hold  .decided-badge { display: inline-block; background: #3a2e0a; color: #ffb300; border: 1px solid #5c4a10; }
+  .decided-pass  .decided-badge { display: inline-block; background: #3a1212; color: #e57373; border: 1px solid #5c2020; }
+
+  /* Pass tier cards */
+  .pass-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  .pass-card {
+    background: #1e1e1e;
+    border: 1px solid #2a2a2a;
+    border-radius: 6px;
+    padding: 12px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .pass-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: #444;
+  }
+
+  .pass-brand {
+    font-size: 13px;
+    font-weight: 600;
+    color: #888;
+  }
+
+  .pass-reason {
+    font-size: 11px;
+    color: #555;
+    margin-top: 3px;
+    line-height: 1.4;
+  }
+
+  .spam-section {
+    margin-top: 24px;
+    padding: 14px 18px;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+  }
+
+  .spam-section h4 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #555;
+    margin-bottom: 10px;
+  }
+
+  .spam-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .spam-tag {
+    font-size: 11px;
+    color: #444;
+    background: #1f1f1f;
+    border: 1px solid #2a2a2a;
+    border-radius: 4px;
+    padding: 3px 9px;
+  }
+
+  /* Summary panel */
+  .summary-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #111;
+    border-top: 1px solid #333;
+    padding: 12px 32px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    z-index: 100;
+    flex-wrap: wrap;
+  }
+
+  .summary-panel .label {
+    font-size: 12px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+
+  .summary-counts {
+    display: flex;
+    gap: 16px;
+  }
+
+  .count-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .count-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .dot-reply { background: #43a047; }
+  .dot-hold  { background: #ffb300; }
+  .dot-pass  { background: #e53935; }
+
+  .reset-btn {
+    margin-left: auto;
+    padding: 6px 16px;
+    border-radius: 5px;
+    border: 1px solid #444;
+    background: transparent;
+    color: #888;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .reset-btn:hover { border-color: #888; color: #ccc; }
+
+  /* Hidden when filtered out */
+  .card.hidden, .tier-section.hidden { display: none; }
+
+  @media (max-width: 600px) {
+    header, .filter-bar, .container { padding-left: 16px; padding-right: 16px; }
+    .summary-panel { padding: 10px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar"></div>
+
+<header>
+  <div class="header-left">
+    <h1>VAGUH Sponsorship Inbox Review</h1>
+    <p>va.guh.bros@gmail.com &nbsp;·&nbsp; Data pulled March 25, 2026 &nbsp;·&nbsp; 30+ inbound emails reviewed</p>
+  </div>
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-num green" id="count-reply">0</div><div class="stat-label">Reply</div></div>
+    <div class="stat"><div class="stat-num amber" id="count-hold">0</div><div class="stat-label">Hold</div></div>
+    <div class="stat"><div class="stat-num red" id="count-pass">0</div><div class="stat-label">Pass</div></div>
+    <div class="stat"><div class="stat-num" style="color:#90a4ae" id="count-undecided">7</div><div class="stat-label">Undecided</div></div>
+  </div>
+</header>
+
+<div class="filter-bar">
+  <span class="filter-label">Show:</span>
+  <button class="filter-btn active" data-filter="all">All</button>
+  <button class="filter-btn" data-filter="undecided">Undecided</button>
+  <button class="filter-btn" data-filter="decided-reply">To Reply</button>
+  <button class="filter-btn" data-filter="decided-hold">On Hold</button>
+  <button class="filter-btn" data-filter="decided-pass">Passed</button>
+</div>
+
+<div class="container">
+
+  <!-- TIER 1 -->
+  <div class="tier-header tier-1">
+    <span class="tier-label">Tier 1</span>
+    <span class="tier-desc">Strong fit &nbsp;·&nbsp; Pursue these</span>
+  </div>
+
+  <div class="cards-grid" id="tier1-grid">
+
+    <!-- REVOZPORT -->
+    <div class="card" id="card-revozport">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="brand-name">REVOZPORT</div>
+          <div class="brand-product">Carbon Fiber Audi RS Aero Kits</div>
+        </div>
+        <span class="fit-badge fit-high">High Fit</span>
+      </div>
+      <div class="card-body">
+        <div class="meta-row">
+          <div class="meta-item"><span class="meta-key">Last Outreach</span><span class="meta-val">Nov 2025</span></div>
+          <div class="meta-item"><span class="meta-key">Relevance</span><span class="meta-val">RS5 / RS6 / B9</span></div>
+          <div class="meta-item"><span class="meta-key">Deal Type</span><span class="meta-val">Install video</span></div>
+        </div>
+        <div class="legitimacy-bar">
+          <span class="legitimacy-label">Legitimacy</span>
+          <div class="bar-track"><div class="bar-fill" style="width:95%"></div></div>
+          <span class="bar-score">9.5/10</span>
+        </div>
+        <p class="summary">Manufacturing since 2005 using Toray prepreg carbon fiber and autoclave curing — the same process as OEM suppliers. They make body kits and aero components specifically for the Audi RS3, RS4, RS5, and RS6. Strong reputation in European enthusiast communities. No drop-shipping, no quality red flags. RS6 content pulls $1,008 RPM on your channel — a carbon fiber install video would be your highest-RPM opportunity yet.</p>
+        <div class="flags">
+          <div class="flag green"><span class="flag-icon">✓</span><span>20+ year manufacturer, not a reseller</span></div>
+          <div class="flag green"><span class="flag-icon">✓</span><span>Explicit Audi RS fitment — direct audience match</span></div>
+          <div class="flag green"><span class="flag-icon">✓</span><span>Premium brand positioning supports your channel identity</span></div>
+          <div class="flag green"><span class="flag-icon">✓</span><span>RS6 category is your highest-RPM content ($1,008 RPM)</span></div>
+        </div>
+        <div class="action-suggested"><strong>Suggested action:</strong> Reply to their November outreach and send the media kit. Pitch a dedicated RS5 or RS6 carbon fiber install video. Target $600–$1,200 for a full dedicated video.</div>
+      </div>
+      <div class="card-footer">
+        <span class="decision-label">Decision</span>
+        <div class="btn-group">
+          <button class="btn btn-reply" onclick="decide('revozport','reply')">Reply</button>
+          <button class="btn btn-hold" onclick="decide('revozport','hold')">Hold</button>
+          <button class="btn btn-pass" onclick="decide('revozport','pass')">Pass</button>
+        </div>
+        <span class="decided-badge" id="badge-revozport"></span>
+      </div>
+    </div>
+
+    <!-- SUPER CLEAN -->
+    <div class="card" id="card-superclean">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="brand-name">Super Clean</div>
+          <div class="brand-product">Multi-Purpose Degreaser</div>
+        </div>
+        <span class="fit-badge fit-high">High Fit</span>
+      </div>
+      <div class="card-body">
+        <div class="meta-row">
+          <div class="meta-item"><span class="meta-key">Last Outreach</span><span class="meta-val">Jan 15, 2026</span></div>
+          <div class="meta-item"><span class="meta-key">Contact</span><span class="meta-val">socialmedia@superclean.com</span></div>
+          <div class="meta-item"><span class="meta-key">Deal Type</span><span class="meta-val">Integrated / affiliate</span></div>
+        </div>
+        <div class="legitimacy-bar">
+          <span class="legitimacy-label">Legitimacy</span>
+          <div class="bar-track"><div class="bar-fill" style="width:95%"></div></div>
+          <span class="bar-score">9.5/10</span>
+        </div>
+        <p class="summary">Nationally distributed degreaser sold at AutoZone, NAPA, O'Reilly, and Walmart. #1 premium degreaser in its category, used by professional mechanics. Biodegradable, phosphate-free formula. Directly applicable to your content — engine bay cleaning and part prep appear in nearly every install video you produce. Easiest sponsorship in your inbox to say yes to.</p>
+        <div class="flags">
+          <div class="flag green"><span class="flag-icon">✓</span><span>Available at AutoZone, NAPA, O'Reilly — audience can actually buy it</span></div>
+          <div class="flag green"><span class="flag-icon">✓</span><span>Used by real mechanics, not a gimmick product</span></div>
+          <div class="flag green"><span class="flag-icon">✓</span><span>Direct content fit — engine bay prep, parts cleaning</span></div>
+          <div class="flag red"><span class="flag-icon">⚠</span><span>Caustic formula requires PPE disclaimer — minor issue for a builder audience</span></div>
+        </div>
+        <div class="action-suggested"><strong>Suggested action:</strong> Reply and engage. Ask about affiliate link or discount code for audience. Target an integrated mention deal ($250–$500) in any upcoming install video. This one is a yes pending their terms.</div>
+      </div>
+      <div class="card-footer">
+        <span class="decision-label">Decision</span>
+        <div class="btn-group">
+          <button class="btn btn-reply" onclick="decide('superclean','reply')">Reply</button>
+          <button class="btn btn-hold" onclick="decide('superclean','hold')">Hold</button>
+          <button class="btn btn-pass" onclick="decide('superclean','pass')">Pass</button>
+        </div>
+        <span class="decided-badge" id="badge-superclean"></span>
+      </div>
+    </div>
+
+    <!-- VDIAGTOOL -->
+    <div class="card" id="card-vdiagtool">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="brand-name">VDIAGTOOL</div>
+          <div class="brand-product">OBD2 Diagnostic Tools</div>
+        </div>
+        <span class="fit-badge fit-high">High Fit</span>
+      </div>
+      <div class="card-body">
+        <div class="meta-row">
+          <div class="meta-item"><span class="meta-key">Last Outreach</span><span class="meta-val">Mar 13, 2026</span></div>
+          <div class="meta-item"><span class="meta-key">Product</span><span class="meta-val">VD70 / VD70S ($350–$400)</span></div>
+          <div class="meta-item"><span class="meta-key">Deal Type</span><span class="meta-val">Dedicated / integrated</span></div>
+        </div>
+        <div class="legitimacy-bar">
+          <span class="legitimacy-label">Legitimacy</span>
+          <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div>
+          <span class="bar-score">8/10</span>
+        </div>
+        <p class="summary">Founded 2018, makes OBD2 scanners with explicit VW and Audi ECU coding and key programming support. VD70 and VD70S sold on Amazon and Walmart with real warranty and support infrastructure. 3 free update years included. This is a direct fit for the diagnostic and troubleshooting side of your build content — especially useful in the Alltrack series where emissions and ECU tuning are involved.</p>
+        <div class="flags">
+          <div class="flag green"><span class="flag-icon">✓</span><span>Explicit VW/Audi support — ECU coding, key programming</span></div>
+          <div class="flag green"><span class="flag-icon">✓</span><span>Amazon + Walmart distribution, real support</span></div>
+          <div class="flag green"><span class="flag-icon">✓</span><span>$350–$400 price point — accessible for serious DIYers</span></div>
+          <div class="flag red"><span class="flag-icon">⚠</span><span>Updates cost $99/year after free period — disclose clearly</span></div>
+          <div class="flag red"><span class="flag-icon">⚠</span><span>Taiwan/China-based support — slower response times</span></div>
+        </div>
+        <div class="action-suggested"><strong>Suggested action:</strong> Reply and request a demo unit. Best fit as an integrated mention in the upcoming Alltrack build series where ECU diagnostics are relevant. Could also work as a standalone "best OBD2 scanner for VW/Audi" video.</div>
+      </div>
+      <div class="card-footer">
+        <span class="decision-label">Decision</span>
+        <div class="btn-group">
+          <button class="btn btn-reply" onclick="decide('vdiagtool','reply')">Reply</button>
+          <button class="btn btn-hold" onclick="decide('vdiagtool','hold')">Hold</button>
+          <button class="btn btn-pass" onclick="decide('vdiagtool','pass')">Pass</button>
+        </div>
+        <span class="decided-badge" id="badge-vdiagtool"></span>
+      </div>
+    </div>
+
+  </div><!-- /tier1-grid -->
+
+  <!-- TIER 2 -->
+  <div class="tier-header tier-2" style="margin-top:36px">
+    <span class="tier-label">Tier 2</span>
+    <span class="tier-desc">Moderate fit &nbsp;·&nbsp; Worth a conversation</span>
+  </div>
+
+  <div class="cards-grid" id="tier2-grid">
+
+    <!-- REDTIGER -->
+    <div class="card" id="card-redtiger">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="brand-name">Redtiger</div>
+          <div class="brand-product">Dashcams (Amazon #1)</div>
+        </div>
+        <span class="fit-badge fit-medium">Medium Fit</span>
+      </div>
+      <div class="card-body">
+        <div class="meta-row">
+          <div class="meta-item"><span class="meta-key">Last Outreach</span><span class="meta-val">May 2025</span></div>
+          <div class="meta-item"><span class="meta-key">Contacts</span><span class="meta-val">4 emails over 2 months</span></div>
+          <div class="meta-item"><span class="meta-key">Price Range</span><span class="meta-val">$100–$250</span></div>
+        </div>
+        <div class="legitimacy-bar">
+          <span class="legitimacy-label">Legitimacy</span>
+          <div class="bar-track"><div class="bar-fill" style="width:90%"></div></div>
+          <span class="bar-score">9/10</span>
+        </div>
+        <p class="summary">Legitimate brand — Amazon's #1 selling dashcam with 570,000+ units sold. Strong warranty, responsive support, solid reviews on TechRadar and AutoGuide. Enthusiast-adjacent but not core to your install content. Best used for driving footage, road trip clips, or track day content rather than a forced integration.</p>
+        <div class="flags">
+          <div class="flag green"><span class="flag-icon">✓</span><span>Amazon #1 dashcam — audience recognizes the brand</span></div>
+          <div class="flag green"><span class="flag-icon">✓</span><span>Strong 3rd-party reviews, legitimate warranty</span></div>
+          <div class="flag red"><span class="flag-icon">⚠</span><span>Peripheral to your core install/build content — forced integrations hurt credibility</span></div>
+          <div class="flag red"><span class="flag-icon">⚠</span><span>4 follow-up emails in 2 months suggests they're aggressively courting many channels</span></div>
+        </div>
+        <div class="action-suggested"><strong>Suggested action:</strong> Negotiate a description + pin deal only ($75–$150). Not worth a full dedicated video — doesn't fit the channel identity. Low effort, low risk passive income if terms work.</div>
+      </div>
+      <div class="card-footer">
+        <span class="decision-label">Decision</span>
+        <div class="btn-group">
+          <button class="btn btn-reply" onclick="decide('redtiger','reply')">Reply</button>
+          <button class="btn btn-hold" onclick="decide('redtiger','hold')">Hold</button>
+          <button class="btn btn-pass" onclick="decide('redtiger','pass')">Pass</button>
+        </div>
+        <span class="decided-badge" id="badge-redtiger"></span>
+      </div>
+    </div>
+
+    <!-- ALLOYWORKS -->
+    <div class="card" id="card-alloyworks">
+      <div class="card-header">
+        <div class="card-header-left">
+          <div class="brand-name">Alloyworks</div>
+          <div class="brand-product">Radiators &amp; Cooling Components</div>
+        </div>
+        <span class="fit-badge fit-medium-high">Medium-High Fit</span>
+      </div>
+      <div class="card-body">
+        <div class="meta-row">
+          <div class="meta-item"><span class="meta-key">Last Outreach</span><span class="meta-val">Apr 2025</span></div>
+          <div class="meta-item"><span class="meta-key">Founded</span><span class="meta-val">2006, Shanghai</span></div>
+          <div class="meta-item"><span class="meta-key">Catalog</span><span class="meta-val">700+ radiator models</span></div>
+        </div>
+        <div class="legitimacy-bar">
+          <span class="legitimacy-label">Legitimacy</span>
+          <div class="bar-track"><div class="bar-fill" style="width:72%"></div></div>
+          <span class="bar-score">7.5/10</span>
+        </div>
+        <p class="summary">Real manufacturer founded in 2006 with a large catalog of aftermarket radiators and cooling components. Cooling upgrades are directly relevant for modified turbocharged VW and Audi builds. The concern is polarized reviews — some customers report excellent results, others report leaks and non-responsive support on defects. Product failure on camera during a build is a credibility problem.</p>
+        <div class="flags">
+          <div class="flag green"><span class="flag-icon">✓</span><span>Cooling upgrades directly relevant to tuned VW/Audi builds</span></div>
+          <div class="flag green"><span class="flag-icon">✓</span><span>Large catalog — good chance of finding Alltrack/RS5/RS6 fitment</span></div>
+          <div class="flag red"><span class="flag-icon">⚠</span><span>Polarized reviews — documented leaks and QC inconsistency</span></div>
+          <div class="flag red"><span class="flag-icon">⚠</span><span>Product failure during a filmed build would hurt channel credibility</span></div>
+        </div>
+        <div class="action-suggested"><strong>Suggested action:</strong> Hold. Request and test samples before committing to any sponsored install. Only pursue if a cooling system video is actively planned and samples prove out.</div>
+      </div>
+      <div class="card-footer">
+        <span class="decision-label">Decision</span>
+        <div class="btn-group">
+          <button class="btn btn-reply" onclick="decide('alloyworks','reply')">Reply</button>
+          <button class="btn btn-hold" onclick="decide('alloyworks','hold')">Hold</button>
+          <button class="btn btn-pass" onclick="decide('alloyworks','pass')">Pass</button>
+        </div>
+        <span class="decided-badge" id="badge-alloyworks"></span>
+      </div>
+    </div>
+
+  </div><!-- /tier2-grid -->
+
+  <!-- TIER 3 -->
+  <div class="tier-header tier-3" style="margin-top:36px">
+    <span class="tier-label">Tier 3</span>
+    <span class="tier-desc">Pass &nbsp;·&nbsp; Not the right fit</span>
+  </div>
+
+  <div class="pass-grid">
+    <div class="pass-card">
+      <span class="pass-icon">✕</span>
+      <div>
+        <div class="pass-brand">Maxpeedingrods</div>
+        <div class="pass-reason">Consistently poor reputation in VW/Audi forums. Leaking coilovers, cracked turbos, bad returns. Credibility risk.</div>
+      </div>
+    </div>
+    <div class="pass-card">
+      <span class="pass-icon">✕</span>
+      <div>
+        <div class="pass-brand">Simply Carbon Fiber</div>
+        <div class="pass-reason">Not automotive parts — sells carbon fiber wallets and phone cases. Misleading name.</div>
+      </div>
+    </div>
+    <div class="pass-card">
+      <span class="pass-icon">✕</span>
+      <div>
+        <div class="pass-brand">Bevinsee</div>
+        <div class="pass-reason">Documented LED overheating failures and QC gaps. Product failure during a build is too risky for brand credibility.</div>
+      </div>
+    </div>
+    <div class="pass-card">
+      <span class="pass-icon">✕</span>
+      <div>
+        <div class="pass-brand">Ottocast (CarPlay)</div>
+        <div class="pass-reason">Legitimate product but wrong channel fit. 4 follow-up emails in one month is a yellow flag. Audience isn't here for head unit accessories.</div>
+      </div>
+    </div>
+    <div class="pass-card">
+      <span class="pass-icon">✕</span>
+      <div>
+        <div class="pass-brand">Eonon / Seicane / XAutoStereo</div>
+        <div class="pass-reason">Generic Chinese aftermarket head unit brands. Mass influencer outreach, no audience alignment.</div>
+      </div>
+    </div>
+    <div class="pass-card">
+      <span class="pass-icon">✕</span>
+      <div>
+        <div class="pass-brand">EAFC (Car Starter / Air Pump)</div>
+        <div class="pass-reason">Generic automotive accessories. No VW/Audi specificity. Mass outreach brand.</div>
+      </div>
+    </div>
+    <div class="pass-card">
+      <span class="pass-icon">✕</span>
+      <div>
+        <div class="pass-brand">Seventour (Audio)</div>
+        <div class="pass-reason">Automotive electronics brand but no VW/Audi specificity. Budget-tier product doesn't match your audience's expectations.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spam-section">
+    <h4>Obvious Spam / Wrong Niche — Archived</h4>
+    <div class="spam-list">
+      <span class="spam-tag">Feppo (steam mops)</span>
+      <span class="spam-tag">PopTribe / Vera Clark (jewelry, skincare)</span>
+      <span class="spam-tag">EOOIO (garden irrigation)</span>
+      <span class="spam-tag">Shuttle Art (art supplies)</span>
+      <span class="spam-tag">First Manufacturing Co. (motorcycle gear)</span>
+      <span class="spam-tag">Wurkkos (clip-on flashlight)</span>
+      <span class="spam-tag">Hardell (engraving pen)</span>
+      <span class="spam-tag">Go Pal (golf accessories)</span>
+      <span class="spam-tag">Rimthin (generic LED bulbs)</span>
+      <span class="spam-tag">YESPER (jump starter)</span>
+      <span class="spam-tag">Synxiter (home goods)</span>
+      <span class="spam-tag">Covers4Car (seat covers)</span>
+      <span class="spam-tag">CarpodGo (car organizer)</span>
+      <span class="spam-tag">Rumble (streaming newsletter)</span>
+      <span class="spam-tag">Pelican Parts (newsletter)</span>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- Bottom summary bar -->
+<div class="summary-panel">
+  <span class="label">Decisions</span>
+  <div class="summary-counts">
+    <div class="count-item"><span class="count-dot dot-reply"></span><span id="footer-reply">0 to reply</span></div>
+    <div class="count-item"><span class="count-dot dot-hold"></span><span id="footer-hold">0 on hold</span></div>
+    <div class="count-item"><span class="count-dot dot-pass"></span><span id="footer-pass">0 passed</span></div>
+    <div class="count-item" style="color:#666"><span id="footer-undecided">5 undecided</span></div>
+  </div>
+  <button class="reset-btn" onclick="resetAll()">Reset All</button>
+</div>
+
+<script>
+  const decisions = {};
+  const TOTAL = 5; // total Tier 1+2 cards
+
+  const brands = ['revozport','superclean','vdiagtool','redtiger','alloyworks'];
+
+  function decide(brand, action) {
+    const card = document.getElementById('card-' + brand);
+    const badge = document.getElementById('badge-' + brand);
+    const btns = card.querySelectorAll('.btn');
+
+    // Toggle off if same action clicked
+    if (decisions[brand] === action) {
+      delete decisions[brand];
+      card.className = 'card';
+      badge.textContent = '';
+      btns.forEach(b => b.classList.remove('active'));
+    } else {
+      decisions[brand] = action;
+      card.className = 'card decided-' + action;
+      badge.textContent = action.charAt(0).toUpperCase() + action.slice(1);
+
+      btns.forEach(b => b.classList.remove('active'));
+      const activeBtn = card.querySelector('.btn-' + action);
+      if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    updateCounts();
+    applyFilter();
+  }
+
+  function updateCounts() {
+    const counts = { reply: 0, hold: 0, pass: 0 };
+    brands.forEach(b => { if (decisions[b]) counts[decisions[b]]++; });
+    const undecided = TOTAL - Object.keys(decisions).length;
+
+    document.getElementById('count-reply').textContent = counts.reply;
+    document.getElementById('count-hold').textContent  = counts.hold;
+    document.getElementById('count-pass').textContent  = counts.pass;
+    document.getElementById('count-undecided').textContent = undecided;
+
+    document.getElementById('footer-reply').textContent     = counts.reply + ' to reply';
+    document.getElementById('footer-hold').textContent      = counts.hold + ' on hold';
+    document.getElementById('footer-pass').textContent      = counts.pass + ' passed';
+    document.getElementById('footer-undecided').textContent = undecided + ' undecided';
+  }
+
+  function applyFilter() {
+    const active = document.querySelector('.filter-btn.active').dataset.filter;
+    brands.forEach(brand => {
+      const card = document.getElementById('card-' + brand);
+      if (active === 'all') {
+        card.classList.remove('hidden');
+      } else if (active === 'undecided') {
+        card.classList.toggle('hidden', !!decisions[brand]);
+      } else {
+        card.classList.toggle('hidden', ('decided-' + decisions[brand]) !== active && !(!decisions[brand] && false));
+        if (active.startsWith('decided-')) {
+          const targetAction = active.replace('decided-','');
+          card.classList.toggle('hidden', decisions[brand] !== targetAction);
+        }
+      }
+    });
+  }
+
+  function resetAll() {
+    brands.forEach(brand => {
+      delete decisions[brand];
+      const card = document.getElementById('card-' + brand);
+      const badge = document.getElementById('badge-' + brand);
+      card.className = 'card';
+      badge.textContent = '';
+      card.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+    });
+    updateCounts();
+    applyFilter();
+  }
+
+  // Filter buttons
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      applyFilter();
+    });
+  });
+</script>
+
+</body>
+</html>
