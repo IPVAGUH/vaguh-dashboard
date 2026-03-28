@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VAGUH x 034 Motorsport - Stage 1 Filming Plan</title>
+<style>
+  :root {
+    --bg: #1a1a1a;
+    --card: #242424;
+    --border: #333;
+    --red: #e53935;
+    --green: #43a047;
+    --amber: #ffb300;
+    --cyan: #26c6da;
+    --titanium: #90a4ae;
+    --text: #e0e0e0;
+    --text-dim: #888;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 0 0 80px 0;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Top bar */
+  .topbar {
+    height: 5px;
+    background: linear-gradient(90deg, var(--red) 33%, #fff 33%, #fff 66%, #111 66%);
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #fff;
+  }
+  .header h1 span { color: var(--red); }
+  .header .subtitle {
+    font-size: 14px;
+    color: var(--titanium);
+    margin-top: 4px;
+  }
+  .header .date {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 2px;
+  }
+
+  /* Progress bar */
+  .progress-wrap {
+    padding: 12px 16px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .progress-bar-bg {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 4px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+  .progress-text {
+    font-size: 11px;
+    color: var(--titanium);
+    margin-top: 4px;
+    text-align: center;
+  }
+
+  /* Nav tabs */
+  .nav {
+    display: flex;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    -webkit-overflow-scrolling: touch;
+  }
+  .nav button {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--titanium);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+  .nav button.active {
+    color: var(--red);
+    border-bottom-color: var(--red);
+  }
+
+  /* Sections */
+  .section { display: none; padding: 16px; }
+  .section.active { display: block; }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card h2 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    color: #fff;
+  }
+  .card h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--titanium);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin: 12px 0 6px;
+  }
+  .card h3:first-child { margin-top: 0; }
+
+  /* Labels */
+  .label {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  .label-diy { background: var(--red); color: #fff; }
+  .label-vlog { background: var(--amber); color: #111; }
+  .label-both { background: var(--cyan); color: #111; }
+
+  /* Checklist */
+  .checklist { list-style: none; }
+  .checklist li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 14px;
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li.checked { opacity: 0.45; }
+  .checklist li.checked .item-text { text-decoration: line-through; }
+  .checklist input[type="checkbox"] {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin-top: 1px;
+    accent-color: var(--green);
+    cursor: pointer;
+  }
+  .item-text { flex: 1; }
+  .item-note {
+    font-size: 12px;
+    color: var(--titanium);
+    font-style: italic;
+    margin-top: 2px;
+  }
+
+  /* Alert/note boxes */
+  .note {
+    font-size: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin: 10px 0;
+    line-height: 1.4;
+  }
+  .note-red { background: rgba(229,57,53,0.15); border-left: 3px solid var(--red); color: #ef9a9a; }
+  .note-cyan { background: rgba(38,198,218,0.12); border-left: 3px solid var(--cyan); color: #80deea; }
+  .note-amber { background: rgba(255,179,0,0.12); border-left: 3px solid var(--amber); color: #ffe082; }
+  .note b { color: #fff; }
+
+  /* Video output table */
+  .video-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 8px 0;
+  }
+  .video-table th {
+    background: var(--red);
+    color: #fff;
+    text-align: left;
+    padding: 6px 10px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .video-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .video-table tr:last-child td { border-bottom: none; }
+
+  /* Crew badges */
+  .crew-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin: 3px 4px 3px 0;
+  }
+  .crew-jeremy { background: var(--red); color: #fff; }
+  .crew-adam { background: var(--green); color: #fff; }
+  .crew-video { background: var(--cyan); color: #111; }
+  .crew-all { background: var(--titanium); color: #111; }
+
+  /* Divider */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  /* Block header with time */
+  .block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .block-header h2 { margin-bottom: 0; }
+  .block-time {
+    font-size: 11px;
+    color: var(--text-dim);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  /* Parallel install indicator */
+  .parallel-banner {
+    background: rgba(255,179,0,0.15);
+    border: 1px solid var(--amber);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    text-align: center;
+    color: var(--amber);
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+<div class="topbar"></div>
+<div class="header">
+  <h1><span>VAGUH</span> x 034 MOTORSPORT</h1>
+  <div class="subtitle">Alltrack Build Series -- Stage 1 Filming Day</div>
+  <div class="date">Sunday, March 29, 2026</div>
+  <div style="margin-top:6px; font-size:12px; font-weight:600; color:var(--green);">LOCATION: Achtuning</div>
+</div>
+
+<div class="progress-wrap">
+  <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+  <div class="progress-text" id="progressText">0 / 0 shots complete</div>
+</div>
+
+<div class="nav" id="nav">
+  <button class="active" data-tab="overview">Overview</button>
+  <button data-tab="setup">Setup</button>
+  <button data-tab="installdocs">Install Docs</button>
+  <button data-tab="swaybar">Sway Bar</button>
+  <button data-tab="controlarms">Control Arms</button>
+  <button data-tab="tune">Tune</button>
+  <button data-tab="intake">Intake</button>
+  <button data-tab="testdrive">Test Drive</button>
+  <button data-tab="wrap">Wrap-Up</button>
+  <button data-tab="videographer">Videographer</button>
+  <button data-tab="gear">Gear</button>
+</div>
+
+<!-- OVERVIEW -->
+<div class="section active" id="overview">
+  <div class="card">
+    <h2>The Plan</h2>
+    <p style="font-size:14px; margin-bottom:10px;">Stage 1 of the 034 Motorsport Alltrack build. Today's footage will produce three videos:</p>
+    <table class="video-table">
+      <tr><th>Video</th><th>Style</th></tr>
+      <tr><td>Rear Sway Bar Install</td><td>DIY How-To <span class="label label-diy">DIY</span></td></tr>
+      <tr><td>Control Arms Install</td><td>DIY How-To <span class="label label-diy">DIY</span></td></tr>
+      <tr><td>Full Build Ep. 1</td><td>Long form vlog <span class="label label-vlog">VLOG</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Install Order</h2>
+    <div class="parallel-banner">DIVIDE & CONQUER: Sway Bar + Control Arms run simultaneously</div>
+    <div style="font-size:13px; line-height:1.8;">
+      <b style="color:var(--amber);">1.</b> Setup & establishing shots (all together)<br>
+      <b style="color:var(--amber);">2.</b> Sway bar (one person) + Control arms (other person) at the same time<br>
+      <b style="color:var(--amber);">3.</b> Tune<br>
+      <b style="color:var(--amber);">4.</b> Intake<br>
+      <b style="color:var(--amber);">5.</b> Test drive & reactions<br>
+      <b style="color:var(--amber);">6.</b> Wrap-up & outro
+    </div>
+    <div class="note note-amber">
+      <b>Videographer:</b> Float between both installs and grab B-roll, reactions, and behind-the-scenes moments. Jeremy and Adam will handle the step-by-step instruction footage on their phones. Focus on what they can't capture themselves.
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Crew & Cameras</h2>
+    <div style="margin-bottom:8px;">
+      <span class="crew-badge crew-jeremy">Jeremy</span> Installer, on camera, phone POV/instruction footage
+      <br><span class="crew-badge crew-adam">Adam</span> Installer, on camera, phone POV/instruction footage
+      <br><span class="crew-badge crew-video">Videographer</span> B-roll, behind-the-scenes, editing long form video
+    </div>
+    <div class="note note-amber" style="margin-top:8px;">
+      <b>Direction:</b> Jeremy and Adam are leading the day. Videographer -- take direction from us on what to shoot and when. We will tell you when we need a specific angle or moment captured.
+    </div>
+    <h3>Camera assignments</h3>
+    <div style="font-size:13px; line-height:1.7;">
+      <b>Jeremy's phone</b> -- POV shots, close-ups of hands/tools, pieces to camera, install instruction footage<br>
+      <b>Adam's phone</b> -- POV shots, close-ups of hands/tools, pieces to camera, install instruction footage<br>
+      <b>Videographer camera(s)</b> -- B-roll, wide angles, behind-the-scenes, cinematic shots, reactions<br>
+      <b>Locked-off camera</b> (if available) -- static wide or overhead of the work area
+    </div>
+    <div class="note note-cyan">
+      <b>Phone footage:</b> Shoot landscape for long form. Vertical is fine for Shorts/Reels only.
+    </div>
+  </div>
+</div>
+
+<!-- SETUP -->
+<div class="section" id="setup">
+  <div class="card">
+    <div class="block-header">
+      <h2>Setup & Establishing Shots</h2>
+      <span class="label label-vlog">VLOG</span>
+    </div>
+    <ul class="checklist" data-group="setup">
+      <li><input type="checkbox"><div class="item-text"><b>Achtuning exterior:</b> Establishing shot of the Achtuning shop/sign/building<div class="item-note">Achtuning is a partner. Show the shop off. Get the signage, the vibe, the space.</div></div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Achtuning interior:</b> Walk-through or pan of the shop, lifts, any cool cars in the bay</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Shoutout:</b> Jeremy/Adam to camera -- "We're here at Achtuning today..." (mention them by name, tag in description)</div></li>
+      <li><input type="checkbox"><div class="item-text">Wide shot of the Alltrack on the lift or in position</div></li>
+      <li><input type="checkbox"><div class="item-text">Lay out ALL 034 parts on a table/floor for the "unboxing spread" shot<div class="item-note">This is the thumbnail and hook moment. Get it clean.</div></div></li>
+      <li><input type="checkbox"><div class="item-text">Jeremy/Adam intro to camera: "Today we're starting the 034 Motorsport Alltrack build..."</div></li>
+      <li><input type="checkbox"><div class="item-text">Close-up panning shots across the 034 boxes/packaging (logo visible)</div></li>
+      <li><input type="checkbox"><div class="item-text">Quick "what we're doing today" overview to camera (list all four mods)</div></li>
+    </ul>
+  </div>
+</div>
+
+<!-- INSTALL DOCS -->
+<div class="section" id="installdocs">
+  <div class="card">
+    <h2>034 Motorsport Install Instructions</h2>
+    <p style="font-size:13px; margin-bottom:12px; color:var(--titanium);">Official 034 Motorsport installation PDFs. Open these on your phone for reference during the installs. These are the manufacturer's step-by-step guides with torque specs, hardware lists, and diagrams.</p>
+
+    <div style="margin-bottom:16px;">
+      <h3>Rear Sway Bar (034-402-1006)</h3>
+      <p style="font-size:13px; margin-bottom:8px;">Adjustable Solid Rear Sway Bar, MQB AWD (Golf R, Alltrack, A3/S3 Quattro)</p>
+      <a href="https://www.034motorsport.com/docs/034motorsport-mqb-audi-a3-s3-quattro-mkvii-volkswagen-golf-r-adjustable-solid-rear-sway-bar-installation-instructions-diy-034-402-1006.pdf" target="_blank" rel="noopener" style="display:inline-block; background:var(--red); color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; font-size:13px; font-weight:600;">Open Sway Bar Install PDF</a>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <h3>Control Arms (034-401-1068)</h3>
+      <p style="font-size:13px; margin-bottom:8px;">Dynamic+ RCO Front Control Arms, MQB / MQB Evo (Golf, GTI, R, Alltrack, A3, S3)</p>
+      <a href="https://www.034motorsport.com/docs/034-401-1068_Install_Instructions.pdf" target="_blank" rel="noopener" style="display:inline-block; background:var(--red); color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; font-size:13px; font-weight:600;">Open Control Arms Install PDF</a>
+    </div>
+
+    <div class="note note-cyan">
+      <b>Tip:</b> Download these PDFs to your phone before heading to the shop in case cell service is spotty at Achtuning. On iPhone: open the link in Safari, tap Share, then "Save to Files."
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Key Torque Specs (Quick Reference)</h2>
+    <p style="font-size:12px; color:var(--titanium); margin-bottom:8px;">From 034 Motorsport install guides. Always verify against the PDF.</p>
+    <table class="video-table">
+      <tr><th>Fastener</th><th>Spec</th></tr>
+      <tr><td>Sway bar mount bolts (stock hardware)</td><td>35 Nm</td></tr>
+      <tr><td>Sway bar bushing bracket</td><td>28 Nm</td></tr>
+      <tr><td>End link nuts</td><td>Per 034 PDF</td></tr>
+      <tr><td>Control arm pinch bolt</td><td>Per 034 PDF</td></tr>
+      <tr><td>Control arm ball joint</td><td>Per 034 PDF</td></tr>
+    </table>
+    <div class="note note-amber" style="margin-top:8px;">
+      <b>Always check the PDF</b> for exact torque specs before tightening. The values above are approximate quick-reference only.
+    </div>
+  </div>
+</div>
+
+<!-- SWAY BAR -->
+<div class="section" id="swaybar">
+  <div class="card">
+    <div class="block-header">
+      <h2>Rear Sway Bar Install</h2>
+      <span class="label label-diy">DIY VIDEO</span>
+    </div>
+    <div class="note note-red">
+      <b>STANDALONE DIY VIDEO.</b> Film every step clearly. This footage needs to work as a complete install tutorial on its own.
+    </div>
+    <div style="margin:8px 0 12px;"><a href="https://www.034motorsport.com/docs/034motorsport-mqb-audi-a3-s3-quattro-mkvii-volkswagen-golf-r-adjustable-solid-rear-sway-bar-installation-instructions-diy-034-402-1006.pdf" target="_blank" rel="noopener" style="display:inline-block; background:var(--cyan); color:#111; padding:6px 14px; border-radius:4px; text-decoration:none; font-size:12px; font-weight:600;">034 Install PDF: Rear Sway Bar</a></div>
+    <ul class="checklist" data-group="swaybar">
+      <li><input type="checkbox"><div class="item-text"><b>Intro:</b> To camera explaining what a rear sway bar does and why you'd upgrade</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Comparison:</b> Show stock sway bar vs the 034 sway bar side by side</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Step-by-step:</b> Full install process with clear shots of every bolt, bracket, and bushing</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Close-ups:</b> Torque specs, hardware, end links</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Tips:</b> Talk through any gotchas or pro tips during the install</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Finished:</b> Shot of the new sway bar installed from underneath</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Wrap:</b> To camera summarizing: total time, difficulty level, tools needed</div></li>
+    </ul>
+  </div>
+</div>
+
+<!-- CONTROL ARMS -->
+<div class="section" id="controlarms">
+  <div class="card">
+    <div class="block-header">
+      <h2>Control Arms Install</h2>
+      <span class="label label-diy">DIY VIDEO</span>
+    </div>
+    <div class="note note-red">
+      <b>STANDALONE DIY VIDEO.</b> Film every step clearly. This footage needs to work as a complete install tutorial on its own.
+    </div>
+    <div style="margin:8px 0 12px;"><a href="https://www.034motorsport.com/docs/034-401-1068_Install_Instructions.pdf" target="_blank" rel="noopener" style="display:inline-block; background:var(--cyan); color:#111; padding:6px 14px; border-radius:4px; text-decoration:none; font-size:12px; font-weight:600;">034 Install PDF: Control Arms</a></div>
+    <ul class="checklist" data-group="controlarms">
+      <li><input type="checkbox"><div class="item-text"><b>Intro:</b> To camera explaining why you'd replace control arms (worn bushings, upgrade to spherical/poly)</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Comparison:</b> Show stock vs 034 control arms side by side</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Step-by-step:</b> Removal of the old control arms</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Step-by-step:</b> Installation of the new 034 control arms</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Close-ups:</b> Torque specs, alignment marks, any special tools needed</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Tips:</b> Talk through gotchas (seized bolts, alignment after, etc.)</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Finished:</b> Show the new arms installed</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Wrap:</b> To camera summarizing difficulty, time, and the difference it should make</div></li>
+    </ul>
+  </div>
+</div>
+
+<!-- TUNE -->
+<div class="section" id="tune">
+  <div class="card">
+    <div class="block-header">
+      <h2>034 Motorsport Tune</h2>
+      <span class="label label-vlog">VLOG ONLY</span>
+    </div>
+    <div class="note note-amber">No standalone DIY video for the tune. This is vlog/long form footage only.</div>
+    <ul class="checklist" data-group="tune">
+      <li><input type="checkbox"><div class="item-text">Film the laptop being plugged in and flashing the ECU</div></li>
+      <li><input type="checkbox"><div class="item-text">Talk through what the tune does (power gains, what changes)</div></li>
+      <li><input type="checkbox"><div class="item-text">Capture the screen/laptop if possible (before numbers or tune interface)</div></li>
+      <li><input type="checkbox"><div class="item-text">Reaction shot after the tune loads: "Alright, Stage 1 tune is on"</div></li>
+      <li><input type="checkbox"><div class="item-text">Quick rev or short pull to feel the difference (if safe to do at this point)</div></li>
+    </ul>
+  </div>
+</div>
+
+<!-- INTAKE -->
+<div class="section" id="intake">
+  <div class="card">
+    <div class="block-header">
+      <h2>034 Motorsport Intake</h2>
+      <span class="label label-vlog">VLOG ONLY</span>
+    </div>
+    <div class="note note-amber">No standalone DIY video for the intake. Vlog/long form footage only.</div>
+    <ul class="checklist" data-group="intake">
+      <li><input type="checkbox"><div class="item-text">Film the stock airbox removal</div></li>
+      <li><input type="checkbox"><div class="item-text">Unboxing/showing the 034 intake system</div></li>
+      <li><input type="checkbox"><div class="item-text">Install highlights (doesn't need to be step-by-step, just the good stuff)</div></li>
+      <li><input type="checkbox"><div class="item-text">Reaction to turbo sounds after install: "Listen to that..."</div></li>
+      <li><input type="checkbox"><div class="item-text">Quick rev or pull to hear the difference (turbo spool, intake noise)</div></li>
+    </ul>
+  </div>
+</div>
+
+<!-- TEST DRIVE -->
+<div class="section" id="testdrive">
+  <div class="card">
+    <div class="block-header">
+      <h2>Test Drive & Reactions</h2>
+      <span class="label label-both">VLOG + DIY</span>
+    </div>
+    <ul class="checklist" data-group="testdrive">
+      <li><input type="checkbox"><div class="item-text"><b>Pre-drive:</b> Jeremy to camera -- "We've done the tune, intake, sway bar, and control arms. Let's see how it feels."</div></li>
+      <li><input type="checkbox"><div class="item-text">Mount a phone on dash/windshield for driving footage</div></li>
+      <li><input type="checkbox"><div class="item-text">Live reactions while driving -- handling, power, turbo sounds</div></li>
+      <li><input type="checkbox"><div class="item-text">Pulls, turns, bumps to feel the sway bar and control arm difference</div></li>
+      <li><input type="checkbox"><div class="item-text">If safe: rolling exterior shots from a following car</div></li>
+      <li><input type="checkbox"><div class="item-text"><b>AUDIO:</b> At least one camera capturing raw engine/exhaust audio (no talking over it)<div class="item-note">Critical for the long form edit. Turbo sounds and exhaust need a clean audio track.</div></div></li>
+      <li><input type="checkbox"><div class="item-text"><b>Post-drive debrief:</b> Back at the garage, on camera reaction to how the car felt</div></li>
+    </ul>
+  </div>
+</div>
+
+<!-- WRAP-UP -->
+<div class="section" id="wrap">
+  <div class="card">
+    <div class="block-header">
+      <h2>Wrap-Up & Long Form Outro</h2>
+      <span class="label label-vlog">VLOG</span>
+    </div>
+    <ul class="checklist" data-group="wrap">
+      <li><input type="checkbox"><div class="item-text">Jeremy/Adam to camera: recap everything done today</div></li>
+      <li><input type="checkbox"><div class="item-text">Tease Stage 2: "Next time we're doing the intercooler and hitting the dyno"</div></li>
+      <li><input type="checkbox"><div class="item-text">Final beauty shots of the car (multiple angles, clean background)</div></li>
+      <li><input type="checkbox"><div class="item-text">Any funny outtakes or behind-the-scenes moments</div></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Shorts & Social Opportunities</h2>
+    <p style="font-size:13px; margin-bottom:8px; color:var(--titanium);">Keep an eye out for these quick-hit clips during the day:</p>
+    <ul class="checklist" data-group="shorts">
+      <li><input type="checkbox"><div class="item-text">Parts unboxing spread (15-30 sec, text overlay listing all mods)</div></li>
+      <li><input type="checkbox"><div class="item-text">"Stock vs 034" side-by-side comparison of any single part</div></li>
+      <li><input type="checkbox"><div class="item-text">First rev after the tune</div></li>
+      <li><input type="checkbox"><div class="item-text">Intake turbo sounds (pure audio-focused Short)</div></li>
+      <li><input type="checkbox"><div class="item-text">Time-lapse of any install (phone on tripod)</div></li>
+      <li><input type="checkbox"><div class="item-text">Reactions on the first test drive</div></li>
+      <li><input type="checkbox"><div class="item-text">Before/after driving comparison (split screen potential)</div></li>
+    </ul>
+    <div class="note note-cyan"><b>Social tags:</b> Post at least 2-3 Instagram stories during the day. Tag <b>@034Motorsport</b> and <b>@Achtuning</b> in each one. Show off the shop.</div>
+  </div>
+</div>
+
+<!-- VIDEOGRAPHER -->
+<div class="section" id="videographer">
+  <div class="card">
+    <h2>Direction for the Videographer</h2>
+    <p style="font-size:14px; margin-bottom:12px;">You are responsible for B-roll, behind-the-scenes footage, and editing the long form video (Full Build Ep. 1). Jeremy and Adam will direct you throughout the day. Here is what you need to know.</p>
+
+    <div class="note note-red" style="margin-bottom:12px;">
+      <b>This is our first time working together.</b> Ask questions if anything is unclear. Jeremy and Adam will tell you what to shoot and when. Your main job is capturing great B-roll, behind-the-scenes moments, and cinematic shots. The install instruction footage will mostly come from Jeremy and Adam's phone cameras.
+    </div>
+
+    <h3>Your Role</h3>
+    <div style="font-size:13px; line-height:1.7; margin-bottom:12px;">
+      <b style="color:var(--cyan);">B-roll:</b> Wide shots of the shop (Achtuning), the car, the parts, tool close-ups, hands working, anything visually interesting.<br><br>
+      <b style="color:var(--cyan);">Behind-the-scenes:</b> Candid moments, banter between Jeremy and Adam, reactions, struggles, wins. The stuff that makes the video feel real.<br><br>
+      <b style="color:var(--cyan);">Cinematic shots:</b> Beauty shots of the car, slow pans across parts, the Achtuning space. These are the "breathing room" moments in the edit.<br><br>
+      <b style="color:var(--cyan);">Editing:</b> You will edit the long form build episode using all footage (your camera + Jeremy and Adam's phone footage).
+    </div>
+
+    <h3>Long Form Video Structure</h3>
+    <p style="font-size:13px; margin-bottom:6px;">The video should feel like a Mat Armstrong or B is for Build episode. The tone shifts by section:</p>
+    <div style="font-size:13px; line-height:1.7; margin-bottom:12px;">
+      <b style="color:var(--amber);">Intro/unboxing:</b> Casual, personality-driven. Jokes, mistakes, banter. Quick cuts, energy, music. Show off Achtuning.<br><br>
+      <b style="color:var(--red);">Sway bar & control arms:</b> More instructional but still fun. Viewer should follow along, but this does NOT need to be as detailed as the standalone DIY videos. Condense into highlights with personality.<br><br>
+      <b style="color:var(--amber);">Tune & intake:</b> Casual vlog energy. Focus on reactions and sounds.<br><br>
+      <b style="color:var(--green);">Test drive & wrap:</b> High energy, reactions, good music. This is the payoff.
+    </div>
+
+    <h3>Parallel Installs -- How to Handle</h3>
+    <p style="font-size:13px; margin-bottom:12px;">Jeremy and Adam will each be doing an install at the same time. Float between them and grab B-roll, reactions, and behind-the-scenes moments. You do NOT need continuous coverage of both installs. Jeremy and Adam are handling the step-by-step instruction footage on their phones. Focus on the stuff they can't capture themselves: wide angles, both of them working at once, candid moments.</p>
+
+    <h3>Key Shots to Prioritize</h3>
+    <div style="font-size:13px; line-height:1.8;">
+      1. Achtuning shop exterior and interior (establish the location)<br>
+      2. Parts spread/unboxing (thumbnail moment)<br>
+      3. Before/after comparisons (stock vs 034 side by side)<br>
+      4. Both Jeremy and Adam working simultaneously (wide shot, split energy)<br>
+      5. Reaction moments (first drive, hearing intake, feeling sway bar)<br>
+      6. Close-ups of 034 Motorsport branding/logos<br>
+      7. Wide shot of the finished car at the end
+    </div>
+
+    <h3>Audio Notes</h3>
+    <p style="font-size:13px; margin-bottom:12px;">Use a lav mic for talking-to-camera segments if available. Install footage can use ambient garage audio (drill sounds, ratchets are great for the vibe). On the test drive, at least one camera MUST capture raw engine/exhaust audio without talking over it.</p>
+
+    <h3>What You Do NOT Need to Worry About</h3>
+    <p style="font-size:13px;">Jeremy and Adam handle the standalone DIY video edits separately using their phone footage. You are focused on the long form build episode only. Don't stress about capturing every install step. Focus on B-roll, energy, and the moments that make the video entertaining.</p>
+  </div>
+</div>
+
+<!-- GEAR -->
+<div class="section" id="gear">
+  <div class="card">
+    <h2>Camera / Production Gear</h2>
+    <ul class="checklist" data-group="gear-cam">
+      <li><input type="checkbox"><div class="item-text">Main camera + charged batteries + memory cards</div></li>
+      <li><input type="checkbox"><div class="item-text">Tripod or stabilizer</div></li>
+      <li><input type="checkbox"><div class="item-text">Lav mic (if available)</div></li>
+      <li><input type="checkbox"><div class="item-text">Phone mounts (dash mount for test drive, tripod adapter for overhead)</div></li>
+      <li><input type="checkbox"><div class="item-text">Portable light (if the garage is dark)</div></li>
+      <li><input type="checkbox"><div class="item-text">Extension cord for charging</div></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Install Gear</h2>
+    <ul class="checklist" data-group="gear-install">
+      <li><input type="checkbox"><div class="item-text">034 parts: tune cable/laptop, intake kit, rear sway bar kit, control arm kit</div></li>
+      <li><input type="checkbox"><div class="item-text">Full socket set, torque wrench, any Alltrack-specific tools</div></li>
+      <li><input type="checkbox"><div class="item-text">Jack + jack stands (or lift access)</div></li>
+      <li><input type="checkbox"><div class="item-text">Penetrating oil (PB Blaster) for seized bolts</div></li>
+      <li><input type="checkbox"><div class="item-text">Blue painter's tape + Sharpie for labeling hardware</div></li>
+      <li><input type="checkbox"><div class="item-text">Shop towels, gloves, safety glasses</div></li>
+      <li><input type="checkbox"><div class="item-text">Phone chargers</div></li>
+      <li><input type="checkbox"><div class="item-text">Water, snacks, lunch plan</div></li>
+    </ul>
+  </div>
+  <div class="card">
+    <h2>Coming Next: Stage 2</h2>
+    <div style="font-size:13px; line-height:1.8;">
+      <b style="color:var(--titanium);">1.</b> Intercooler install (potential standalone DIY video)<br>
+      <b style="color:var(--titanium);">2.</b> Dyno session -- before and after numbers<br>
+      <b style="color:var(--titanium);">3.</b> Any additional mods or finishing touches<br>
+      <b style="color:var(--titanium);">4.</b> Final review with all Stage 1 + 2 mods combined
+    </div>
+    <div class="note note-amber">Any "next time" or "Stage 2 tease" moments during filming are gold for the long form outro.</div>
+  </div>
+</div>
+
+<script>
+  // Tab navigation
+  var buttons = document.querySelectorAll('.nav button');
+  var sections = document.querySelectorAll('.section');
+
+  buttons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var tab = btn.getAttribute('data-tab');
+      buttons.forEach(function(b) { b.classList.remove('active'); });
+      sections.forEach(function(s) { s.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById(tab).classList.add('active');
+      window.scrollTo(0, 0);
+    });
+  });
+
+  // Checkbox progress
+  function updateProgress() {
+    var all = document.querySelectorAll('.checklist input[type="checkbox"]');
+    var checked = document.querySelectorAll('.checklist input[type="checkbox"]:checked');
+    var pct = all.length > 0 ? Math.round((checked.length / all.length) * 100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressText').textContent = checked.length + ' / ' + all.length + ' shots complete (' + pct + '%)';
+  }
+
+  document.querySelectorAll('.checklist input[type="checkbox"]').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+      var li = cb.closest('li');
+      if (cb.checked) {
+        li.classList.add('checked');
+      } else {
+        li.classList.remove('checked');
+      }
+      updateProgress();
+    });
+  });
+
+  updateProgress();
+</script>
+</body>
+</html>
