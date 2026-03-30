@@ -843,6 +843,36 @@
     });
   });
 
+  // Persistent checkbox state via localStorage
+  var STORAGE_KEY = 'vaguh-034-filming-checklist';
+
+  function getSavedState() {
+    try {
+      var saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : {};
+    } catch(e) { return {}; }
+  }
+
+  function saveState() {
+    var state = {};
+    document.querySelectorAll('.checklist input[type="checkbox"]').forEach(function(cb, i) {
+      if (cb.checked) state[i] = true;
+    });
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+  }
+
+  // Restore saved state on load
+  (function restoreState() {
+    var state = getSavedState();
+    document.querySelectorAll('.checklist input[type="checkbox"]').forEach(function(cb, i) {
+      if (state[i]) {
+        cb.checked = true;
+        var li = cb.closest('li');
+        if (li) li.classList.add('checked');
+      }
+    });
+  })();
+
   // Checkbox progress
   function updateProgress() {
     var all = document.querySelectorAll('.checklist input[type="checkbox"]');
@@ -860,6 +890,7 @@
       } else {
         li.classList.remove('checked');
       }
+      saveState();
       updateProgress();
     });
   });
