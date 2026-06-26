@@ -58,6 +58,7 @@
 <script crossorigin src="https://unpkg.com/prop-types@15/prop-types.min.js"></script>
 <script crossorigin src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
 <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script>Babel.registerPreset("react-classic",{presets:[[Babel.availablePresets.react,{runtime:"classic"}]]});</script>
 <script src="https://accounts.google.com/gsi/client"></script>
 <script>
 // ── YouTube API Live Data Integration ──
@@ -217,7 +218,7 @@ async function pullYouTubeData(onStatus) {
 </script>
 
 <div id="root"></div>
-<script type="text/babel">
+<script type="text/babel" data-presets="react-classic">
 const { useState, useEffect } = React;
 const { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, CartesianGrid, Legend, ComposedChart } = Recharts;
 
@@ -539,8 +540,8 @@ const actionTasks = [
 
 const amazonData = {
   storeId: "vaguh-20",
-  lastUpdated: "2026-03-23",
-  summary: { clicks: 906, orders: 20, shipped: 20, returned: 1, orderedRev: 1047.56, totalRev: 1018.57, earnings: 42.34, conversion: 2.21 },
+  lastUpdated: "2026-03-30",
+  summary: { clicks: 1000, orders: 21, shipped: 21, returned: 1, orderedRev: 1047.56, totalRev: 1043.90, earnings: 43.90, conversion: 2.10 },
   payments: [
     { date: "Feb 18, 2026", amount: 23.40, detail: "Dec ($14.08) + Nov ($9.32)" },
     { date: "Dec 18, 2025", amount: 16.84, detail: "Oct 2025" },
@@ -565,7 +566,7 @@ const amazonData = {
     { d: "Feb 23", c: 11, o: 0, e: 0 }, { d: "Feb 22", c: 14, o: 0, e: 0 },
   ],
   monthlyEarnings: [
-    { m: "Mar 26*", e: 42.34 }, { m: "Jan 26", e: -1.17 }, { m: "Dec 25", e: 14.08 },
+    { m: "Mar 26*", e: 43.90 }, { m: "Jan 26", e: -1.17 }, { m: "Dec 25", e: 14.08 },
     { m: "Nov 25", e: 9.32 }, { m: "Oct 25", e: 16.84 }, { m: "Sep 25", e: 32.48 },
   ],
 };
@@ -580,8 +581,8 @@ window.channelMetrics = {
   avgViewPct: 22.4,
   avgRPM: 227,
   topRPM: 1008,
-  affiliateConversion: 2.21,
-  affiliateRevenue30d: 1018.57,
+  affiliateConversion: 2.10,
+  affiliateRevenue30d: 1043.90,
   niche: "Automotive / VW-Audi Enthusiast",
   demographics: { male: 92, age2534: 38, age3544: 27, usa: 62 },
 };
@@ -2171,7 +2172,50 @@ function WebsiteMerchTab() {
 
 ReactDOM.createRoot(document.getElementById("root")).render(<VAGUHPerformanceTuningCenter />);
 function AffiliateRevenueTab() {
-  const s = amazonData.summary;
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [affData, setAffData] = useState(() => {
+    try {
+      const saved = localStorage.getItem('vaguh_affiliate_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        Object.assign(amazonData.summary, parsed.summary);
+        amazonData.lastUpdated = parsed.lastUpdated;
+        if (parsed.monthlyEarnings) amazonData.monthlyEarnings[0].e = parsed.summary.earnings;
+      }
+    } catch(e) {}
+    return amazonData;
+  });
+  const [form, setForm] = useState({
+    earnings: affData.summary.earnings,
+    clicks: affData.summary.clicks,
+    orders: affData.summary.orders,
+    shipped: affData.summary.shipped,
+    conversion: affData.summary.conversion,
+    totalRev: affData.summary.totalRev,
+  });
+
+  const handleSave = () => {
+    const updated = {
+      summary: {
+        ...affData.summary,
+        earnings: parseFloat(form.earnings) || 0,
+        clicks: parseInt(form.clicks) || 0,
+        orders: parseInt(form.orders) || 0,
+        shipped: parseInt(form.shipped) || 0,
+        conversion: parseFloat(form.conversion) || 0,
+        totalRev: parseFloat(form.totalRev) || 0,
+      },
+      lastUpdated: new Date().toISOString().slice(0, 10),
+    };
+    Object.assign(amazonData.summary, updated.summary);
+    amazonData.lastUpdated = updated.lastUpdated;
+    amazonData.monthlyEarnings[0].e = updated.summary.earnings;
+    localStorage.setItem('vaguh_affiliate_data', JSON.stringify(updated));
+    setAffData({ ...amazonData });
+    setShowUpdate(false);
+  };
+
+  const s = affData.summary;
   const kCards = [
     { label: "Earnings (30d)", value: "$" + s.earnings.toFixed(2), icon: "\ud83d\udcb0", color: C.green },
     { label: "Clicks", value: "" + s.clicks, icon: "\ud83d\uddb1", color: C.titanium },
@@ -2180,16 +2224,45 @@ function AffiliateRevenueTab() {
     { label: "Product Revenue", value: "$" + s.totalRev.toFixed(0), icon: "\ud83d\uded2", color: C.green },
     { label: "Shipped", value: "" + s.shipped, icon: "\u2705", color: C.green },
   ];
+
+  const inputStyle = { background: "#2a2a2a", border: "1px solid #444", borderRadius: 4, padding: "8px 10px", color: C.white, fontSize: 13, width: "100%", boxSizing: "border-box" };
+  const labelStyle = { fontSize: 10, color: C.muted, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4, display: "block" };
+
   return (
     <div>
+      {showUpdate && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }} onClick={() => setShowUpdate(false)}>
+          <div style={{ background: "#1e1e1e", border: "1px solid #444", borderRadius: 8, padding: 24, width: 420, maxWidth: "90vw" }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: "0 0 16px", fontSize: 14, fontWeight: 800, color: C.green, letterSpacing: 2, textTransform: "uppercase" }}>Update Affiliate Data</h3>
+            <p style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>Paste your latest numbers from Amazon Associates. This saves locally so the dashboard stays current.</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+              <div><label style={labelStyle}>Earnings (30d)</label><input style={inputStyle} type="number" step="0.01" value={form.earnings} onChange={e => setForm({...form, earnings: e.target.value})} /></div>
+              <div><label style={labelStyle}>Clicks</label><input style={inputStyle} type="number" value={form.clicks} onChange={e => setForm({...form, clicks: e.target.value})} /></div>
+              <div><label style={labelStyle}>Orders</label><input style={inputStyle} type="number" value={form.orders} onChange={e => setForm({...form, orders: e.target.value})} /></div>
+              <div><label style={labelStyle}>Shipped</label><input style={inputStyle} type="number" value={form.shipped} onChange={e => setForm({...form, shipped: e.target.value})} /></div>
+              <div><label style={labelStyle}>Conversion %</label><input style={inputStyle} type="number" step="0.01" value={form.conversion} onChange={e => setForm({...form, conversion: e.target.value})} /></div>
+              <div><label style={labelStyle}>Product Revenue</label><input style={inputStyle} type="number" step="0.01" value={form.totalRev} onChange={e => setForm({...form, totalRev: e.target.value})} /></div>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowUpdate(false)} style={{ background: "#333", color: C.muted, border: "none", borderRadius: 4, padding: "8px 16px", cursor: "pointer", fontSize: 12 }}>Cancel</button>
+              <button onClick={handleSave} style={{ background: C.green, color: "#fff", border: "none", borderRadius: 4, padding: "8px 16px", cursor: "pointer", fontSize: 12, fontWeight: 700 }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ ...card, marginBottom: 16, borderLeft: "3px solid " + C.green, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: C.green, letterSpacing: 2, textTransform: "uppercase" }}>Amazon Associates Dashboard</h3>
-          <p style={{ margin: "4px 0 0", fontSize: 11, color: C.muted }}>Store ID: {amazonData.storeId} | Last updated: {amazonData.lastUpdated}</p>
+          <p style={{ margin: "4px 0 0", fontSize: 11, color: C.muted }}>Store ID: {affData.storeId} | Last updated: {affData.lastUpdated}</p>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 28, fontWeight: 900, color: C.green }}>${s.earnings.toFixed(2)}</div>
-          <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1 }}>30-DAY EARNINGS</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          <button onClick={() => { setForm({ earnings: s.earnings, clicks: s.clicks, orders: s.orders, shipped: s.shipped, conversion: s.conversion, totalRev: s.totalRev }); setShowUpdate(true); }} style={{ background: C.green, color: "#fff", border: "none", borderRadius: 4, padding: "8px 14px", cursor: "pointer", fontSize: 11, fontWeight: 700, letterSpacing: 1, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 14 }}>&#x1F504;</span> UPDATE DATA
+          </button>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 28, fontWeight: 900, color: C.green }}>${s.earnings.toFixed(2)}</div>
+            <div style={{ fontSize: 9, color: C.muted, letterSpacing: 1 }}>30-DAY EARNINGS</div>
+          </div>
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 10, marginBottom: 16 }}>
@@ -2205,7 +2278,7 @@ function AffiliateRevenueTab() {
         <div style={{ ...card, borderLeft: "3px solid " + C.titanium }}>
           <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.titanium, letterSpacing: 2, textTransform: "uppercase" }}>Daily Clicks and Earnings</h3>
           <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={[...amazonData.daily].reverse()} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
+            <ComposedChart data={[...affData.daily].reverse()} margin={{ top: 5, right: 20, left: 0, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(192, 196, 204, 0.06)" />
               <XAxis dataKey="d" tick={{ fill: C.muted, fontSize: 8 }} angle={-45} textAnchor="end" interval={2} />
               <YAxis yAxisId="left" tick={{ fill: C.muted, fontSize: 9 }} />
@@ -2220,13 +2293,13 @@ function AffiliateRevenueTab() {
         <div style={{ ...card, borderLeft: "3px solid " + C.amber }}>
           <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.amber, letterSpacing: 2, textTransform: "uppercase" }}>Monthly Earnings</h3>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={[...amazonData.monthlyEarnings].reverse()} margin={{ top: 5, right: 10, left: 0, bottom: 40 }}>
+            <BarChart data={[...affData.monthlyEarnings].reverse()} margin={{ top: 5, right: 10, left: 0, bottom: 40 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(192, 196, 204, 0.06)" />
               <XAxis dataKey="m" tick={{ fill: C.muted, fontSize: 9 }} angle={-35} textAnchor="end" />
               <YAxis tick={{ fill: C.muted, fontSize: 9 }} />
               <Tooltip contentStyle={tipStyle} formatter={(v) => "$" + v.toFixed(2)} />
               <Bar dataKey="e" name="Earnings" radius={[3, 3, 0, 0]}>
-                {[...amazonData.monthlyEarnings].reverse().map((entry, idx) => (
+                {[...affData.monthlyEarnings].reverse().map((entry, idx) => (
                   <Cell key={idx} fill={entry.e >= 0 ? C.green : C.red} />
                 ))}
               </Bar>
@@ -2237,7 +2310,7 @@ function AffiliateRevenueTab() {
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div style={{ ...card, borderLeft: "3px solid " + C.green }}>
           <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.green, letterSpacing: 2, textTransform: "uppercase" }}>Payment History</h3>
-          {amazonData.payments.map((p, i) => (
+          {affData.payments.map((p, i) => (
             <div key={i} style={{ padding: "8px 0", borderBottom: "1px solid rgba(192,196,204,0.04)", display: "flex", justifyContent: "space-between", fontSize: 12, alignItems: "center" }}>
               <span style={{ color: C.text }}>{p.date}</span>
               <span style={{ color: C.green, fontWeight: 700 }}>${p.amount.toFixed(2)}</span>
@@ -2252,14 +2325,15 @@ function AffiliateRevenueTab() {
         <div style={{ ...card, borderLeft: "3px solid " + C.red }}>
           <h3 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 800, color: C.red, letterSpacing: 2, textTransform: "uppercase" }}>Affiliate Programs</h3>
           {[
-            { name: "Amazon Associates", tag: "vaguh-20", status: "Active", color: C.green, earn: "$26/30d" },
+            { name: "Amazon Associates", tag: "vaguh-20", status: "Active", color: C.green, earn: "$" + s.earnings.toFixed(0) + "/30d" },
             { name: "Integrated Engineering", tag: "VAGUH code", status: "Active", color: C.green, earn: "Track via IE" },
             { name: "BadgeSkins", tag: "VAGuh15", status: "Active", color: C.green, earn: "Track via site" },
             { name: "Obsessed Garage", tag: "bit.ly link", status: "Active", color: C.green, earn: "Track via OG" },
             { name: "Achtuning", tag: "Direct link", status: "Active", color: C.amber, earn: "No tracking" },
             { name: "034 Motorsport", tag: "Sponsor", status: "Mention", color: C.titanium, earn: "-" },
+            { name: "ECS Tuning", tag: "Affiliate", status: "Active", color: C.green, earn: "Track via ECS" },
+            { name: "FCP Euro", tag: "Pending", status: "Outreach", color: C.amber, earn: "-" },
             { name: "OBDeleven", tag: "None yet", status: "Outreach", color: C.muted, earn: "-" },
-            { name: "FCP Euro / ECS", tag: "None yet", status: "Apply", color: C.muted, earn: "-" },
           ].map((p, i) => (
             <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", borderBottom: "1px solid rgba(192,196,204,0.04)", fontSize: 11 }}>
               <span style={{ color: C.text, fontWeight: 600, flex: "1 1 110px" }}>{p.name}</span>
