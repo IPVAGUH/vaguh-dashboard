@@ -107,13 +107,15 @@ async function pullYouTubeData(onStatus) {
   const end = new Date().toISOString().slice(0, 10);
   const start = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
   const analyticsResp = await ytFetch(
-    `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${start}&endDate=${end}&metrics=views,estimatedMinutesWatched,estimatedRevenue,averageViewPercentage,subscribersGained,subscribersLost`, token
+    `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${start}&endDate=${end}&metrics=views,estimatedMinutesWatched,estimatedRevenue,averageViewPercentage,subscribersGained,subscribersLost,estimatedAdRevenue,estimatedRedPartnerRevenue`, token
   );
-  const aRow = analyticsResp.rows && analyticsResp.rows[0] ? analyticsResp.rows[0] : [0,0,0,0,0,0];
+  const aRow = analyticsResp.rows && analyticsResp.rows[0] ? analyticsResp.rows[0] : [0,0,0,0,0,0,0,0];
   const watchMinutes = aRow[1] || 0;
   const watchHours = Math.round(watchMinutes / 60);
   const revenue = aRow[2] || 0;
   const avgViewPct = aRow[3] || 0;
+  const adRevenue = aRow[6] || 0;
+  const premiumRevenue = aRow[7] || 0;
 
   // 3. Monthly revenue breakdown (last 6 months)
   onStatus('Pulling monthly revenue...');
@@ -157,6 +159,42 @@ async function pullYouTubeData(onStatus) {
     views: r[1], minutes: r[2], revenue: r[3], avgDuration: r[4]
   }));
 
+  // 6. Subscriber vs non-subscriber
+  onStatus('Pulling subscriber status...');
+  let subStatusRows = [];
+  try {
+    const ssResp = await ytFetch(
+      `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${start}&endDate=${end}&metrics=views,estimatedMinutesWatched&dimensions=subscribedStatus`, token
+    );
+    subStatusRows = (ssResp.rows || []).map(r => ({ status: r[0], views: r[1], minutes: r[2] }));
+  } catch(e) {}
+
+  // 7. Top videos by VIEWS (for Content tab table)
+  onStatus('Pulling top videos by views...');
+  let topByViews = [];
+  try {
+    const tvvResp = await ytFetch(
+      `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${start}&endDate=${end}&metrics=views,estimatedMinutesWatched,estimatedRevenue,averageViewDuration&dimensions=video&sort=-views&maxResults=15`, token
+    );
+    const ids2 = (tvvResp.rows || []).map(r => r[0]);
+    let tmap = {};
+    if (ids2.length > 0) {
+      const vr = await ytFetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${ids2.join(',')}`, token);
+      (vr.items || []).forEach(v => { tmap[v.id] = v.snippet.title; });
+    }
+    topByViews = (tvvResp.rows || []).map(r => ({ id:r[0], title:tmap[r[0]]||r[0], views:r[1], minutes:r[2], revenue:r[3], avgDuration:r[4] }));
+  } catch(e) {}
+
+  // 8. Per-video views + revenue (all videos) for live category aggregation
+  onStatus('Pulling per-video totals for categories...');
+  let perVideo = [];
+  try {
+    const pvResp = await ytFetch(
+      `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==${channelId}&startDate=${start}&endDate=${end}&metrics=views,estimatedRevenue&dimensions=video&sort=-views&maxResults=200`, token
+    );
+    perVideo = (pvResp.rows || []).map(r => ({ id:r[0], views:r[1], revenue:r[2] }));
+  } catch(e) {}
+
   onStatus('Done! Updating dashboard...');
 
   return {
@@ -169,9 +207,108 @@ async function pullYouTubeData(onStatus) {
     monthlyRevenue: monthlyRows,
     trafficSources: trafficRows,
     topVideos: topVideos,
+    topByViews: topByViews,
+    subStatus: subStatusRows,
+    perVideo: perVideo,
+    adRevenue: Math.round(adRevenue * 100) / 100,
+    premiumRevenue: Math.round(premiumRevenue * 100) / 100,
+    dataStart: start,
+    dataEnd: end,
     pulledAt: new Date().toISOString(),
   };
 }
+
+// ── Title Change Before/After Comparison (added) ──
+window.RETITLED = [{"i":"D5s7RyDir3g","c":"VW Golf/GTI/R","o":"Replacing the Battery - VW Golf MK7","n":"How to Replace the Battery on a VW Golf MK7 (Step-by-Step)","p":"2020-11-05"},{"i":"9Td_gR0o5JE","c":"VW Golf/GTI/R","o":"deAutoLED Tail Lights and Reverse Lights - VW Golf MK7","n":"VW Golf MK7 LED Tail Light Upgrade - deAutoLED Install","p":"2020-10-22"},{"i":"XftCrP0-osg","c":"RS5","o":"Upgrade the B&O Speakers on Your Audi A4, S4, A5, S5 or RS5 Sportback - Front Door Speakers","n":"How to Upgrade B&O Front Door Speakers - Audi A4/S4/A5/S5/RS5","p":"2021-08-18"},{"i":"_KeNJaictWQ","c":"Audi S5/S4 Build","o":"How To Install A CarbnLab RS Grill On Your Audi B9 S5","n":"CarbnLab RS Grille Install Guide - Audi B9 S5","p":"2020-08-08"},{"i":"npQcnukJbk4","c":"RS5","o":"Upgrade the B&O Speakers on Your Audi A5, S5 or RS5 Sportback - Front Center Speaker","n":"Audi A5/S5/RS5 Center Speaker Upgrade - B&O Front Install","p":"2021-08-08"},{"i":"WHfsylmr8-I","c":"Audi S5/S4 Build","o":"APR Stage 1 Tuned Audi B9 S5 Sportback on the Dyno","n":"Audi B9 S5 APR Stage 1 Dyno Results - Before & After Numbers","p":"2020-05-02"},{"i":"buiDCuob2AQ","c":"General/Other","o":"IS THIS YOUR EA888's NEXT MOD?","n":"Best Next Mod for Your EA888? This Intake Changes Everything","p":"2022-08-11"},{"i":"g9ESswpRQKs","c":"SQ7/Q7","o":"Audi Q7 (07-15) Cabin Air Filter Replacement","n":"Audi Q7 Cabin Air Filter Replacement (2007-2015) - DIY Guide","p":"2021-11-17"},{"i":"5Cx4cpeQs2Q","c":"General/Other","o":"Upgrade your Audi’s Flappy Paddle Shifters With These Urus Style Paddles From Enthusiastbrand.com","n":"Urus-Style Paddle Shifters for Audi B9 - Upgrade Install Guide","p":"2021-04-10"},{"i":"9nAfaIMdQys","c":"VW Golf/GTI/R","o":"VW Golf R Integrated Engineering Stage 1 VS Stock & 1/4 Mile Comparison","n":"VW Golf R IE Stage 1 vs Stock - Dyno & Quarter Mile Comparison","p":"2021-09-25"},{"i":"vyfG_CZ0fZc","c":"Audi S5/S4 Build","o":"RedStar Exhaust Downpipe Install - Audi S5","n":"Audi S5 Downpipe Install - RedStar Exhaust Step-by-Step","p":"2020-05-16"},{"i":"GW6c_JVuGUw","c":"VW Golf/GTI/R","o":"VW Golf R Misfire FIXED with APR Ignition Coils and Spark Plug Gap Check","n":"VW Golf R Misfire Fix - APR Coils & Spark Plug Gap Check","p":"2020-12-14"},{"i":"SqFsWbJi6UM","c":"VW Golf/GTI/R","o":"Installing The aerofabb Spoiler Extension - VW MK7 Golf R","n":"How to Install the aerofabb Spoiler Extension - VW MK7 Golf R","p":"2021-03-23"},{"i":"kxcHhEntiTw","c":"Audi S5/S4 Build","o":"10” JL Stealth Subwoofer Basser Box Install For B&O Upgrade To More Bass - Audi S5 Sportback","n":"10-Inch JL Stealth Sub Install - Audi S5 B&O Bass Upgrade","p":"2021-03-28"},{"i":"AcbBzWXvI-4","c":"034 Motorsport","o":"034 Motorsport Stage 1 + TCU first impressions - Tuner Comparison Series Episode 3.5","n":"034 Motorsport Stage 1 + TCU First Impressions - Audi B9 S5","p":"2021-06-20"},{"i":"A8dFbPihV1Q","c":"RS6/RS7","o":"Budget RS6! Is the SQ7 with an APR tune as good?","n":"Audi SQ7 with APR Tune - Is It a Budget RS6? Review & Drive","p":"2022-08-08"},{"i":"U2W2w-nJWXk","c":"Audi S5/S4 Build","o":"Audi B9 S4, S5& SQ5 Staged Build Guide","n":"Audi B9 S4/S5/SQ5 Complete Stage Build Guide - 1 Through 3","p":"2022-04-11"},{"i":"-uR4yYSGO3M","c":"Audi S5/S4 Build","o":"Audi S5 Exhaust Mod - VPS Tuning Pre-Muffler Delete Kit","n":"Audi S5 Pre-Muffler Delete - VPS Tuning Exhaust Sound Mod","p":"2020-08-30"},{"i":"00OEyUjmKRY","c":"VW Golf/GTI/R","o":"MK7R Intake Sounds and Install - Integrated Engineering (IE)","n":"Integrated Engineering Intake Install & Sound - VW MK7 Golf R","p":"2021-11-17"},{"i":"psl7Ehc82RQ","c":"Audi S5/S4 Build","o":"Audi B9 S4/S5 ECU Tune comparison APR and Unitronic Stage 1 - Episode 1 Intro & Driving Experience","n":"Audi Tune Comparison Ep. 1 - APR vs Unitronic Stage 1 Intro","p":"2021-05-17"},{"i":"X1PD9WikPtw","c":"VW Golf/GTI/R","o":"Do you even NEED an Intercooler? - VW MK7R Install","n":"Do You Actually Need an Intercooler? VW MK7 Golf R Install","p":"2023-03-12"},{"i":"_RGLGsV5s4o","c":"RS5","o":"Audi RS5 Redstar Downpipe Install, Cold Start, And Rev","n":"Audi RS5 Downpipe Install - RedStar Cold Start & Rev Sounds","p":"2022-06-01"},{"i":"cVz4-19mNYU","c":"VW Golf/GTI/R","o":"Swapping the subwoofer - WAS IT WORTH IT? VW MK7 Golf R","n":"VW MK7 Golf R Subwoofer Swap - Was It Worth It?","p":"2021-05-02"},{"i":"D1whnVM2y9c","c":"Audi S5/S4 Build","o":"Audi S5 Stage 3 Update - Integrated Engineering","n":"Audi S5 Stage 3 Update - IE Tune Results on TTE710 Turbo","p":"2022-03-19"},{"i":"JMBdddogQu0","c":"Audi S5/S4 Build","o":"RedStar Exhaust Downpipe Review Audi S5","n":"RedStar Downpipe 6-Month Review - Audi B9 S5 Sound & Power","p":"2020-06-20"},{"i":"uTBlG8VLi4w","c":"VW Golf/GTI/R","o":"deAutoLED Front & Rear Footwell Lighting - VW MK7 Golf","n":"VW MK7 Golf Footwell LED Lighting Upgrade - deAutoLED Install","p":"2021-06-07"},{"i":"2xMuzzG1-DE","c":"Audi S5/S4 Build","o":"Audi B9 S4/S5 ECU Tune comparison Stage 1 - Episode 5 034 Motorsport at the Dyno","n":"Audi Tune Comparison Ep. 5 - 034 Motorsport Stage 1 Track Test","p":"2021-08-02"},{"i":"C2XNnvXEluM","c":"Audi S5/S4 Build","o":"Integrated Engineering Stage 1 & 2 Tune For Audi B9 S4, S5, Sq5 - First Impressions and Drag Race","n":"IE Stage 1 & 2 Tune First Impressions - Audi B9 S4/S5/SQ5","p":"2021-09-18"},{"i":"jtkoOhmMKW0","c":"RS5","o":"Audi B9 RS5 Gets Crackalackin' with 034 Motorsport Stage 1 Tune","n":"Audi B9 RS5 with 034 Stage 1 Tune - Crackle Map & First Drive","p":"2024-03-04"},{"i":"U58WjUEybyA","c":"Audi S5/S4 Build","o":"1/4 mile in 2019 Audi S5 Sportback- Stage 3 034Motorsport tune.","n":"Audi S5 Stage 3 Quarter Mile Run - 034 Motorsport Tune","p":"2022-09-06"},{"i":"0nEa7Mnqszw","c":"RS5","o":"6” Subwoofer Upgrade for the B9 A5/S5/RS5 Sportback","n":"6-Inch Subwoofer Upgrade for Audi B9 A5/S5/RS5 Sportback","p":"2021-02-20"},{"i":"ipS3zlNwOEg","c":"Audi S5/S4 Build","o":"Audi B9 S5 Stage 3 Install TTE710 Hybrid Turbo","n":"TTE710 Hybrid Turbo Install - Audi B9 S5 Stage 3 Build","p":"2022-05-24"},{"i":"Yldkr0y5DfA","c":"Exterior/Aero","o":"Use Your Stock S Badge on Your CarbnLabs RS Style Grill","n":"Keep Your S Badge on a CarbnLabs RS Grille - Audi S5 Mod","p":"2020-10-24"},{"i":"BtyI7ihG20s","c":"VW Golf/GTI/R","o":"What I Learned From My Windshield Replacement - VW MK7 Golf R","n":"Windshield Replacement Tips for VW MK7 Golf R - What I Learned","p":"2020-06-26"},{"i":"ETCP9zzPKms","c":"SQ7/Q7","o":"Audi SQ7 Transformation - Maxton Install, Over 700 Horse Power, and Dyno  Testing APR Stage 1 Tune","n":"Audi SQ7 700HP Build - Maxton Aero, Dyno & Transformation","p":"2024-02-24"},{"i":"Qh9yl8hJ8xM","c":"Audi S5/S4 Build","o":"Audi S5 (B9) Unitronic Stage 1 + at the Drag Strip - Tuner Comparison Series Episode 3","n":"Unitronic Stage 1 at the Drag Strip - Audi B9 S5 Quarter Mile","p":"2021-05-31"},{"i":"d_SvrO6MWhU","c":"VW Golf/GTI/R","o":"MQB Jack Pad Kit - EASIEST Install To Make Your Life Easier!","n":"MQB Jack Pad Kit Install - Easiest VW/Audi Mod You Need","p":"2022-08-06"},{"i":"BEu8pusKC8s","c":"VW Golf/GTI/R","o":"ALL Spoiler Extensions Compared - VW MK7 Golf GTI and R","n":"Every Spoiler Extension for VW MK7 Golf R & GTI - Ranked","p":"2021-06-04"},{"i":"PEcu28Heav8","c":"VW Golf/GTI/R","o":"Fuel-It! Ethanol Sensor Install With Improved Wiring - VW GTI/R & Audi A3/S3","n":"Fuel-It Ethanol Sensor Install - VW GTI/R & Audi MQB Wiring Fix","p":"2021-10-09"},{"i":"t6AaGFGdKCA","c":"Audi S5/S4 Build","o":"Stage 3 TTE710 Audi S5 1/4 Mile - 034Motorsport Stage 3 Plus E60","n":"Stage 3 TTE710 Audi S5 Quarter Mile - 034 E60 Tune Results","p":"2022-09-26"},{"i":"aqrqkixr2Yw","c":"Audi S5/S4 Build","o":"Audi S5 Sportback Current and Future POWER MODS!","n":"My Audi S5 Sportback Mod List & Future Power Build Plans","p":"2020-04-06"},{"i":"kXdTHOnuhq0","c":"VW Golf/GTI/R","o":"ECS Tuning Flush Kit - MK7 Golf R Wheel Spacers","n":"VW MK7 Golf R Wheel Spacers Install - ECS Flush Kit Guide","p":"2020-03-22"},{"i":"NhZHjDQQn1g","c":"Audi S5/S4 Build","o":"Audi B9 S4/S5 ECU Tune comparison APR and Unitronic Stage 1 - Episode 2 Unitronic at the Dyno","n":"Audi Tune Comparison Ep. 2 - Unitronic Stage 1 Dyno & Review","p":"2021-05-22"},{"i":"itAm8VsjpPE","c":"Audi S5/S4 Build","o":"Audi S5 (B9) @APRtube  Stage 1 at the Drag Strip - Tuner Comparison Series Episode 4","n":"APR Stage 1 at the Drag Strip - Audi B9 S5 Quarter Mile","p":"2021-07-16"},{"i":"aVHAr2BaBC4","c":"VW Golf/GTI/R","o":"TrueFlex Sensor Harness Install - Integrated Engineering VW/Audi MQB","n":"IE TrueFlex Ethanol Sensor Harness Install - VW/Audi MQB","p":"2021-12-04"},{"i":"iXqDHzhVd9M","c":"VW Golf/GTI/R","o":"How To Code the Parking Overlay with OBDeleven - VW MK7 Golf","n":"How to Code Parking Overlay with OBDeleven - VW MK7 Golf","p":"2020-12-05"},{"i":"jS3hlueCVrk","c":"VW Golf/GTI/R","o":"VW/Audi MQB HPFP Upgrade - Autotech Internals","n":"MQB High Pressure Fuel Pump Upgrade - Autotech Internals Install","p":"2021-11-06"},{"i":"zbjQqxAE9Gk","c":"Audi S5/S4 Build","o":"Audi S5 Stage 3 - 034 vs IE on the DYNO!  TTE710 Turbo","n":"Audi S5 Stage 3 Dyno Battle - 034 vs IE on TTE710 Turbo","p":"2022-06-08"},{"i":"IHEedSv-Fsk","c":"VW Golf/GTI/R","o":"ILLUMINATED DSG Paddle Shift Extensions for the MK7 Golf R by nczworks - Install and Review","n":"Illuminated DSG Paddle Shift Extensions - nczworks MK7 Golf R","p":"2020-05-17"},{"i":"un9WU88tAF4","c":"Audi S5/S4 Build","o":"2019 Audi S5 Sportback APR Intercooler Installation","n":"APR Intercooler Install Guide - 2019 Audi S5 Sportback","p":"2020-03-16"},{"i":"W6cmVgD5b9g","c":"SQ7/Q7","o":"APR Audi SQ7 Intake Install Guide","n":"APR Intake Install Guide - Audi SQ7 Step-by-Step","p":"2023-05-08"},{"i":"fgHwiXSFcWA","c":"Audi S5/S4 Build","o":"Karbel Carbon for the Audi S5 - Carbon Fiber Spoiler, Side Skirts, and Rear Diffuser","n":"Karbel Carbon Fiber Aero Kit for Audi S5 - Full Install","p":"2023-05-28"},{"i":"IhRPFJR2G9w","c":"Audi S5/S4 Build","o":"Audi B9 S4 / S5 / SQ5 APR High Pressure Fuel Pump (HPFP) Install - Stage 3","n":"APR HPFP Install Guide - Audi B9 S4/S5/SQ5 Stage 3 Fueling","p":"2022-05-29"},{"i":"hcdQqg_dFkI","c":"Audi S5/S4 Build","o":"Updated Integrated Engineering Turbo Inlet for Audi B9 S4/S5","n":"Updated IE Turbo Inlet for Audi B9 S4/S5 - Install & Review","p":"2022-09-09"},{"i":"EBLP15dzYLk","c":"General/Other","o":"This part WILL break and lock you out of your engine bay!","n":"This Audi Part WILL Break & Lock You Out of the Engine Bay","p":"2021-11-13"},{"i":"yH9jzA2dJyM","c":"Audi S5/S4 Build","o":"First S5 Upgrade - 034 Transmission Mount Insert","n":"First Mod for Audi S5 - 034 Transmission Mount Insert Install","p":"2020-02-25"},{"i":"sGchKPvVvlI","c":"VW Golf/GTI/R","o":"RokBlokz Short Mud Flaps VW MK7 Golf R Install and Details","n":"RokBlokz Mud Flaps Install & Review - VW MK7 Golf R","p":"2020-08-29"},{"i":"l2c2kF23F28","c":"VW Golf/GTI/R","o":"aerofabb Side Splitter Install - MK7 & MK7.5 GTI","n":"aerofabb Side Splitter Install - VW MK7 & MK7.5 GTI","p":"2021-02-19"},{"i":"e94tCW7n0gY","c":"VW Golf/GTI/R","o":"VW MK8 Golf Center Speaker Replacement","n":"VW MK8 Golf Center Speaker Replacement - Easy Audio Upgrade","p":"2025-02-12"},{"i":"9oflcAECSz0","c":"VW Golf/GTI/R","o":"Disable Front and Rear Side Markers with OBDeleven - VW MK7.5 Golf","n":"How to Disable Side Markers with OBDeleven - VW MK7.5 Golf","p":"2021-04-15"},{"i":"uGIuXPhlhWE","c":"VW Golf/GTI/R","o":"Disable orange LED and KEEP the white dot - MK7 Golf Headlight","n":"Remove Orange LED & Keep White DRL - VW MK7 Golf Headlight Mod","p":"2021-01-08"},{"i":"3C_-CovYWnM","c":"Audi S5/S4 Build","o":"Audi S5 Stage 3 RS Injector Installation","n":"Audi S5 Stage 3 RS Injector Install - Fueling for Big Power","p":"2022-09-09"},{"i":"ZO_jeGt8lSs","c":"VW Golf/GTI/R","o":"The VW Spektrum Program Story for North America","n":"VW Spektrum Program Explained - How to Order a Custom Color Golf","p":"2021-03-02"},{"i":"wBjclCNPlqY","c":"VW Golf/GTI/R","o":"MK7.5 GTI aerofabb® V2 Front Splitter Install (and kind of a grill video)","n":"aerofabb V2 Front Splitter Install - VW MK7.5 GTI","p":"2020-11-23"},{"i":"kWfqMVVno5o","c":"VW Golf/GTI/R","o":"VW Spektrum Program Catalyst Car","n":"VW Spektrum Catalyst Car - The Story Behind the Program","p":"2023-08-29"},{"i":"EvaWQGZuI4M","c":"VW Golf/GTI/R","o":"Legit Speed Designs Rear Diffuser Fins Unboxing and Install - MK7 Golf R","n":"MK7 Golf R Rear Diffuser Fins Install - Legit Speed Designs","p":"2020-06-12"},{"i":"XHiEdYgbWxA","c":"VW Golf/GTI/R","o":"aerofabb® V2 Front Splitter Install - MK7 Golf R","n":"aerofabb V2 Front Splitter Install - VW MK7 Golf R","p":"2020-12-27"},{"i":"mjcyc-R0X0w","c":"VW Golf/GTI/R","o":"How to install the Alltrack skid plate WITHOUT removing the bumper cover - VW MK7 Golf R","n":"Alltrack Skid Plate Install Without Removing the Bumper","p":"2020-10-12"},{"i":"0ETXc7aQHuE","c":"RS6/RS7","o":"Res X: Rev Up Your C8 RS6 or RS7 with 034Motorsport's Exhaust Upgrade!","n":"034 Motorsport Res X Exhaust for Audi C8 RS6/RS7 - Sound Test","p":"2023-09-02"},{"i":"cp4PkBv_zUo","c":"RS6/RS7","o":"RS6 CETE Module Install - Lower Your Audi From Your Phone","n":"CETE Air Suspension Module Install - Lower Your Audi RS6 by Phone","p":"2024-04-20"},{"i":"i807diIFqHc","c":"Audi S5/S4 Build","o":"Audi B9 S4 9 second 1/4 mile run. Integrated Engineering is making things interesting. Stay tuned!","n":"Audi B9 S4 Runs 9-Second Quarter Mile - IE Stage 3 Power","p":"2022-03-30"},{"i":"4ProDJMf0ds","c":"Audi S5/S4 Build","o":"Installing a CarbnLabs Turbo Inlet On An Audi B9 S5/S4 With 034 Intake","n":"CarbnLabs Turbo Inlet Install on Audi B9 S5 with 034 Intake","p":"2021-01-29"},{"i":"oZv1cv32Fi4","c":"VW Golf/GTI/R","o":"VW MK7 Golf Water Leak! This cheap part can COST A LOT!","n":"VW MK7 Golf Water Leak Fix - This Cheap Part Can Cost Big","p":"2023-03-29"},{"i":"DNEJ0jbUtrI","c":"VW Golf/GTI/R","o":"aerofabb V2 Street Edition Rear Diffuser - VW MK7 GTI Install","n":"aerofabb Rear Diffuser Install & Review - VW MK7 GTI","p":"2022-05-27"},{"i":"dj1DVOV04qM","c":"Audi S5/S4 Build","o":"Audi B9 S5 H&R Rear Sway Bar and 034 Subframe Insert Install","n":"H&R Rear Sway Bar Install - Audi B9 S5 Handling Upgrade","p":"2020-03-04"},{"i":"seIEnPBH8q0","c":"Audi S5/S4 Build","o":"My 700 HP #audiS5 is my #dailydriver  I love the way is sounds!","n":"My 700HP Audi S5 Daily Driver - Street Sounds & Cold Start","p":"2024-01-16"},{"i":"F8NrbeDpApw","c":"Audi S5/S4 Build","o":"Can My Stage 3 Audi S5 Finally Break 10 Seconds? Massive Upgrades & Track Day","n":"Audi S5 Stage 3 Quarter Mile - Can It Break 10 Seconds?","p":"2025-02-06"},{"i":"MWQAruVGugE","c":"Audi S5/S4 Build","o":"Audi S5 Sportback- DVX Performance Stage 2 - Review and Dyno","n":"DVX Performance Stage 2 Tune Review & Dyno - Audi S5","p":"2021-12-04"},{"i":"606vhkTv_Mg","c":"VW Golf/GTI/R","o":"Beri-Backer VW MK7.5 GTI Rear Diffuser by @cjmindustries","n":"CJM Industries Beri-Backer Rear Diffuser Install - MK7.5 GTI","p":"2022-06-18"},{"i":"k3E3QG10-gA","c":"Exterior/Aero","o":"DAMAGE from aerofabb's rear spoiler extension?","n":"aerofabb Rear Spoiler Extension - Did It Damage My Paint?","p":"2021-09-27"},{"i":"1BqFZOXmGTo","c":"VW Golf/GTI/R","o":"Ranking (7) Rear Spoiler Extensions for the Golf R and GTI","n":"7 Rear Spoiler Extensions Ranked - VW Golf R & GTI Buyers Guide","p":"2021-08-08"},{"i":"-qrVoBrr6hU","c":"Audi S5/S4 Build","o":"New TTE710 turbo installed on the Audi S5!! Stay tuned!!","n":"TTE710 Turbo Installed on Audi S5 - First Start & Sounds","p":"2021-11-15"},{"i":"LaGb0dtECPQ","c":"Audi S5/S4 Build","o":"Audi S5 Track Ready Build List","n":"My Audi S5 Track Build List - Everything You Need","p":"2022-09-29"},{"i":"eAOTL-7eq4M","c":"Audi S5/S4 Build","o":"I live my life a 1/4 mile at a time… in 10 second intervals. #audi #s5 #stage3 ​⁠#tuned","n":"Audi S5 Stage 3 Quarter Mile Compilation - 10 Second Runs","p":"2024-07-25"},{"i":"H9osao7JiSk","c":"General/Other","o":"IE Stage 1 TrueFlex Tune - Flash Process Overview","n":"IE Stage 1 TrueFlex Tune Flash - Step-by-Step Overview","p":"2022-06-26"},{"i":"kWCt6OITyEU","c":"RS6/RS7","o":"Audi RS6 Catback Exhaust INSTALL - Integrated Engineering","n":"IE Catback Exhaust Install - Audi RS6 Sound Before & After","p":"2023-11-13"},{"i":"Y5f9fllBdHU","c":"VW Golf/GTI/R","o":"Quarter Mile on Ethanol and Tips for Blending - Integrated Engineering E30 Golf R","n":"VW Golf R Quarter Mile on E30 - IE TrueFlex Ethanol Tips","p":"2021-11-11"},{"i":"zMgEmn9O934","c":"VW Golf/GTI/R","o":"deAutoLED Trunk Light - VW MK7 Golf","n":"VW MK7 Golf LED Trunk Light Upgrade - deAutoLED Install","p":"2020-09-20"},{"i":"r8YTJsX-16Y","c":"VW Golf/GTI/R","o":"The BEST VW MK7 Golf License Plate Bracket - Legit Speed Designs","n":"Best License Plate Bracket for VW MK7 Golf - Legit Speed Designs","p":"2021-01-15"},{"i":"yqvInaKdLnI","c":"RS5","o":"RS5 (B9) - Installing The Carbon Fiber Intake From 034Motorsport","n":"034 Motorsport Carbon Fiber Intake Install - Audi B9 RS5","p":"2022-08-14"},{"i":"3eCSMNgXKIw","c":"RS6/RS7","o":"Audi C8 RS6 - IE Carbon Fiber Intake Install Guide","n":"IE Carbon Fiber Intake Install Guide - Audi C8 RS6","p":"2022-07-24"},{"i":"JNavP_Acczs","c":"General/Other","o":"APR Coil Pack Install - Not Really a How To","n":"APR Ignition Coil Pack Install - Audi/VW EA888 Guide","p":"2020-11-01"},{"i":"5z4L41BICFU","c":"VW Golf/GTI/R","o":"Installing The aerofabb® Spoiler Extension - VW MK7 Golf R","n":"How to Install aerofabb Spoiler Extension - VW MK7 Golf R","p":"2020-09-19"},{"i":"Q4-xAKhTXjk","c":"RS6/RS7","o":"How to Transform Your Audi RS6 with Maxton Design Spoiler & Side Skirts: Epic Upgrade!","n":"Maxton Design RS6 Aero Kit Install - Spoiler & Side Skirts","p":"2023-04-12"},{"i":"bIx_yGaPtJQ","c":"Audi S5/S4 Build","o":"On Track Interview with Sean Davis from 034Motorsport - Audi S4 Stage 3 Pure 750 Turbo","n":"Interview with 034 Motorsport CEO Sean Davis - Track Day Chat","p":"2023-08-06"},{"i":"LeUqGGprN2w","c":"Audi S5/S4 Build","o":"S5 updates and VLOG","n":"Audi S5 Build Update - Current Mods & What is Next","p":"2023-04-09"},{"i":"26zua7i1VHo","c":"Audi S5/S4 Build","o":"034Motorsport Track Battle: Audi B9.5 S4 Stage 1 E85 Tune and Audi B9 S5 Stage 3 91 Octane","n":"034 Track Battle - Audi B9.5 S4 Stage 1 vs B9 S5 Stage 3","p":"2023-08-04"},{"i":"8uPclK9GEVo","c":"RS6/RS7","o":"Before and after #rs7 with @034motorsport ResX #exhaust sounds!","n":"Audi RS7 Before & After 034 Res X Exhaust - Sound Comparison","p":"2023-08-23"},{"i":"hrAkGyxPm-I","c":"RS6/RS7","o":"#rs6 @IEtuned #sneakpeek #audilife","n":"IE Audi RS6 Sneak Peek - New Parts Coming Soon","p":"2023-08-15"},{"i":"Whl-OFh8WIk","c":"Audi S5/S4 Build","o":"Should We Install a 10” Sub in the S5?","n":"Should You Add a 10-Inch Sub to Your Audi S5? Sound Test","p":"2021-02-27"},{"i":"WYkOsqpTh7c","c":"RS6/RS7","o":"5 Minute Mod - Better Shifting For Your C8 Audi RS6 With A Transmission Mount From 034Motorsport","n":"5-Minute Mod - 034 Transmission Mount Insert for Audi C8 RS6","p":"2023-08-09"},{"i":"rkp89gQZUl8","c":"Audi S5/S4 Build","o":"#trackday @WeatherTechRaceway_LagunaSeca with the guys from @034motorsport in the #audiS5 #mk7r","n":"Track Day at Laguna Seca with 034 Motorsport - RS6 & S5","p":"2023-08-01"},{"i":"ApdqzdLuMIQ","c":"VW Golf/GTI/R","o":"aerofabb® Side Splitter Install - MK7 Golf R","n":"aerofabb Side Splitter Install Guide - VW MK7 Golf R","p":"2021-02-01"},{"i":"XQ18zjMDNrg","c":"VW Golf/GTI/R","o":"MK7 Golf R Front Lip Install - No Hardware? No Problem!","n":"VW MK7 Golf R Front Lip Install - No Hardware Fix","p":"2020-05-14"},{"i":"czl6cU9MYdE","c":"General/Other","o":"GRANDMA GOT 100HP BOOST AND LOVED IT! #audisport","n":"Grandma Reacts to 100HP Boost in My Audi - Family Ride Along","p":"2023-11-30"},{"i":"SRaSaPfonXM","c":"RS6/RS7","o":"Audi C8 RS6 - Integrated Engineering Carbon Fiber Intake - Unboxing","n":"IE Carbon Fiber Intake Unboxing - Audi C8 RS6 First Look","p":"2022-07-23"},{"i":"ZnIdv8asiVA","c":"Audi S5/S4 Build","o":"My #audis5 at #stage1 and #stage3 #tte710 running the #quartermile for comparison.","n":"Audi S5 Stage 1 vs Stage 3 Quarter Mile Comparison","p":"2023-03-09"},{"i":"MYbF619qFZ8","c":"Audi S5/S4 Build","o":"Just wrestling the #stage3 #audis5 with the #tte710 #turbo on #launch","n":"Stage 3 Audi S5 Launch Control - TTE710 Turbo Pulls","p":"2023-03-06"},{"i":"PhdrNBBlpt0","c":"VW Spektrum","o":"ONE-OF-A-KIND Spektrum Rotiform DTM Wheels & Chat with Jason Whipple - **GIVEAWAY**","n":"One-of-a-Kind Spektrum Rotiform DTM Wheels - Chat with Jason Whipple","p":"2021-02-10"},{"i":"Yt6rB3FFh8k","c":"VW Golf/GTI/R","o":"deAutoLED Sun Visor Light - VW MK7 Golf","n":"VW MK7 Golf LED Sun Visor Light - deAutoLED Install","p":"2020-09-25"},{"i":"q8iL4OXgzV4","c":"RS5","o":"034Motorsport Tour - Audi RS5 and Audi R8 Developments and More!","n":"034 Motorsport Shop Tour - RS5, R8 & Behind the Scenes","p":"2022-07-30"},{"i":"4N0hHbtvEF4","c":"Track/Drag","o":"Pacific Waterland Drag Races and Head to Head With VanCity Audi!","n":"Drag Racing My Audi S5 vs VanCity Audi - Pacific Waterland","p":"2023-03-05"},{"i":"DdVTeh15Zsw","c":"Lighting","o":"Badgeskins Headlight Amber Delete and Pretoria Wheel Spoke Accent","n":"Badgeskins Amber Delete & Pretoria Accent Install - VW MK7","p":"2020-10-24"},{"i":"lX3iX3D8Yiw","c":"SQ7/Q7","o":"#audi #sq7 gets a #carbonfiber engine cover upgrade from @APRtube and it looks sick! #dailydriver","n":"APR Carbon Fiber Engine Cover Upgrade - Audi SQ7","p":"2024-05-03"},{"i":"hM69SPYLK0s","c":"Audi S5/S4 Build","o":"The #s5 needed some body work after a getting back into. #storytime #carfix","n":"Audi S5 Body Work Repair - Fixing Damage After an Incident","p":"2025-07-19"},{"i":"QaQeQ714izQ","c":"Audi S5/S4 Build","o":"More #caraudio upgrades in the #audis5 Visit https://rs-acoustics.com to get yours.","n":"Audi S5 Audio Upgrade - RS Acoustics Speaker Install","p":"2025-11-05"},{"i":"Qj8naojBL_8","c":"Audi S5/S4 Build","o":"Track Day at The Ridge Motorsports Park With the IE Tuned, Stage 3 S5 Sportback.","n":"Track Day at Ridge Motorsports - IE Stage 3 Audi S5 Sportback","p":"2022-05-15"},{"i":"8lOiXg5crio","c":"General/Other","o":"TURBO INLET GIVEAWAY!!","n":"Turbo Inlet Giveaway! Win a Free Upgrade for Your Audi/VW","p":"2022-09-01"},{"i":"mZo7zjiTuV4","c":"General/Other","o":"Reduce DSG Paddle Wiggle? AFTERMARKET DSG PINS COMPARED","n":"Fix DSG Paddle Wiggle - Aftermarket Shift Pins Compared","p":"2021-05-11"},{"i":"SDKfObe7SGE","c":"VW Golf/GTI/R","o":"Rare VW Spektrum Golf R - Copper Orange Metallic","n":"Rare VW Spektrum Golf R in Copper Orange Metallic - Walkaround","p":"2025-02-05"},{"i":"xScZzG3NEz4","c":"Audi S5/S4 Build","o":"Unboxing RedStar Exhaust Downpipe - Audi B9 S5","n":"RedStar Downpipe Unboxing - Audi B9 S5 First Look","p":"2020-04-27"},{"i":"QjKuQS029IY","c":"VW Golf/GTI/R","o":"deAutoLED Glovebox Light - VW MK7 Golf","n":"VW MK7 Golf LED Glovebox Light - deAutoLED Install","p":"2020-10-04"},{"i":"T48b7Pxgcj8","c":"Audi S5/S4 Build","o":"Installed a #stage3 #turbo from@APRtube into my #audi #s5!","n":"APR Stage 3 Turbo Installed on Audi S5 - Build Update","p":"2024-09-21"},{"i":"da4Zka-OPeg","c":"SQ7/Q7","o":"Unboxing the APR forged-carbon intake for my SQ7","n":"APR Forged Carbon Intake Unboxing - Audi SQ7","p":"2023-03-05"},{"i":"8V9J4K3qoN0","c":"VW Golf/GTI/R","o":"BadgeSkins for my MK7 Golf R","n":"BadgeSkins Install & Review - VW MK7 Golf R","p":"2020-02-23"},{"i":"4yOjrAofKDE","c":"VW Golf/GTI/R","o":"034 Motorsport VW/Audi MQB Intercooler Upgrade","n":"034 Motorsport MQB Intercooler Upgrade - Install & Review","p":"2025-01-22"},{"i":"uqT6Gz212OU","c":"SQ7/Q7","o":"@034motorsport has some sweet 2 piece #performace rotors for the #audi #sq7. #audilife","n":"034 Motorsport 2-Piece Performance Rotors for Audi SQ7","p":"2024-11-10"},{"i":"Iy65audzBCE","c":"Audi S5/S4 Build","o":"Got the #stage3 #audi #s5 out to the #racetrack to run some #quartermile #tte810 #audilife #carmods","n":"Stage 3 Audi S5 at the Drag Strip - Quarter Mile Results","p":"2024-07-15"},{"i":"qe0VEsdWk7M","c":"Audi S5/S4 Build","o":"New #turbo for the #audis5 today! It’s a #TTE810 to help make this a #9secondcar !","n":"New TTE810 Turbo for the Audi S5 - Chasing 9 Second Quarter Mile","p":"2023-02-25"},{"i":"LeBQbRMSOAw","c":"RS6/RS7","o":"New RS6 Maxton install video coming soon.","n":"Audi RS6 Maxton Design Install - Coming Soon Preview","p":"2023-02-05"},{"i":"m9g-VZhE8xA","c":"RS6/RS7","o":"New RS6 Exhaust. Sounds by Integrated Engineering","n":"New Audi RS6 Exhaust Sound - Integrated Engineering","p":"2023-08-18"},{"i":"y7VyVLPpmos","c":"General/Other","o":"Anyone who says they don’t do this is lying","n":"Every Car Enthusiast Does This When Nobody is Watching","p":"2021-10-26"},{"i":"cbY-crbe4gg","c":"VW Golf/GTI/R","o":"Unboxing The aerofabb® Spoiler Extension for the MK7 Golf R & GTI","n":"aerofabb Spoiler Extension Unboxing - VW MK7 Golf R & GTI","p":"2020-09-10"},{"i":"T0PC83-M5LA","c":"SQ7/Q7","o":"Quick update on the #SQ7 chrome deleted!","n":"Audi SQ7 Chrome Delete - Before & After Quick Update","p":"2023-02-09"},{"i":"WJNhdeMJEfc","c":"Audi S5/S4 Build","o":"Audi B9 Stage 3 - APR DTR 8868 Turbo and Tune","n":"APR DTR 8868 Stage 3 Turbo Review - Audi B9 S5 Track Test","p":"2025-11-14"},{"i":"iL93fYchn1M","c":"Audi S5/S4 Build","o":"Took the Audi S5 to the track to put the APR Stage 3 DTR 8868 Turbo though its paces.","n":"APR DTR 8868 Stage 3 Track Day - Audi S5 Quarter Mile Runs","p":"2025-07-30"},{"i":"L4wsICE6f28","c":"General/Other","o":"The new TTE810 has arrived! Here’s a quick unboxing.","n":"TTE810 Turbo Unboxing - Audi S5 Gets a Major Upgrade","p":"2023-02-03"},{"i":"yRMLMePsowM","c":"Audi S5/S4 Build","o":"Audi B9 S4/S5 ECU Tune comparison APR and Unitronic Stage 1 - Episode 1 Intro & Driving Experience","n":"Audi Tune Comparison Ep. 1 - APR vs Unitronic Stage 1 Intro","p":"2021-05-17"},{"i":"2liL2gJPNNE","c":"SQ7/Q7","o":"Preview of the upcoming SQ7 video.","n":"Audi SQ7 Build Video Preview - What Is Coming Next","p":"2021-12-29"},{"i":"2hZS-ImK-Wg","c":"RS6/RS7","o":"NEW! C8 RS6 Exhaust From Integrated Engineering - Unboxing","n":"IE Catback Exhaust Unboxing - Audi C8 RS6 First Look","p":"2023-08-17"},{"i":"ZOtKLPqF_Dw","c":"Audi S5/S4 Build","o":"Take a look under my #S5 and replace the tunnel brace with a better one from @034motorsport .","n":"Audi S5 Tunnel Brace Upgrade - 034 Motorsport Install","p":"2024-02-19"},{"i":"zY_xak_uS8U","c":"Audi S5/S4 Build","o":"These @034motorsport flow form ZTF LP01 wheels are going to help me to a 9 second 1/4 mile. #s5","n":"034 Motorsport ZTF LP01 Wheels for Audi S5 - Lightweight Upgrade","p":"2024-04-03"},{"i":"P9rhnhlWwOQ","c":"VW Golf/GTI/R","o":"Getting to know Jeff from MyGolfMK7.com","n":"Chat with Jeff from MyGolfMK7.com - VW Community Spotlight","p":"2020-11-19"},{"i":"09q9gZrqtfg","c":"Audi S5/S4 Build","o":"#s5 #700hp #dailydriver #snowcommute","n":"700HP Audi S5 Snow Commute - AWD Stage 3 Daily Driver","p":"2024-01-19"},{"i":"dE7bIFCCcW8","c":"VW Golf/GTI/R","o":"SPOTTED! VW Spektrum found in the wild! #carspotting","n":"VW Spektrum Golf Spotted in the Wild - Rare Factory Color","p":"2024-03-10"},{"i":"BYqqGPJZhYQ","c":"Track/Drag","o":"DYNO DAY with some locals!","n":"Dyno Day With Local Builds - Power Numbers Revealed","p":"2025-02-23"},{"i":"6GWPozfmfME","c":"Channel/Brand","o":"3 Tips to Get Your Car SPONSORED - Inside The VAGuh","n":"3 Tips to Get Your Car Sponsored - Behind the Scenes at VAGUH","p":"2021-12-13"},{"i":"CJtbo5Umhks","c":"Audi S5/S4 Build","o":"#audis5 getting some #carbonfiber #drip . @karbelcarbon","n":"Karbel Carbon Fiber Upgrade on My Audi S5 - Quick Look","p":"2023-03-27"},{"i":"o1F8k7eijxY","c":"Audi S5/S4 Build","o":"#S5 #brakejob #quickjacks #racedeck #garage update.","n":"Audi S5 Brake Job in My Garage - QuickJacks & RaceDeck Setup","p":"2023-02-12"},{"i":"2_p_FyJ-XXs","c":"Audi S5/S4 Build","o":"#dragradials and new #wheels for the #audi #s5 from @034motorsport getting ready for racing season.","n":"Drag Radials & 034 Wheels for the Audi S5 - Track Prep","p":"2024-03-30"},{"i":"2zWCyw7dOKI","c":"VW Golf/GTI/R","o":"Track day prep! #vwgolfr","n":"VW Golf R Track Day Prep - What You Need","p":"2024-07-27"},{"i":"n5TOo4UsaYE","c":"VW Golf/GTI/R","o":"How I Modified The aerofabb® Spoiler Extension for the MK7 Golf R & GTI","n":"Custom aerofabb Spoiler Extension Mod - VW MK7 Golf R & GTI","p":"2020-09-06"},{"i":"5FPneNIe2gY","c":"SQ7/Q7","o":"Turbo install update. It snowed! 810 going in this morning. #audis5 #sq7 #s5 #turbo #audilife","n":"TTE810 Turbo Install Day - Audi S5 Build Update","p":"2023-02-26"},{"i":"too0PA8rI8A","c":"General/Other","o":"Getting ready for a trip!","n":"Road Trip Prep - Packing the Audi for Adventure","p":"2022-03-26"},{"i":"wOvTDG50TII","c":"VW Golf/GTI/R","o":"Volkswagen Golf R Current MODS and WISH LIST","n":"My VW Golf R Mod List & Future Build Plans","p":"2020-04-08"},{"i":"twOw32wA7RY","c":"VLOG/Updates","o":"#shorts We Have Some Exciting News!","n":"Exciting News for VAGUH - Big Announcement Coming","p":"2021-03-20"},{"i":"hgNfyqh398Y","c":"VW Spektrum","o":"Merry Spektrum Christmas!","n":"Merry Spektrum Christmas - Holiday Special","p":"2021-12-24"},{"i":"8Cj7sjASxGs","c":"General/Other","o":"I should do this more often","n":"Audi S5 Joy Ride - Stage 3 Pulls on Empty Roads","p":"2023-05-19"},{"i":"bDE1pt9UJnk","c":"General/Other","o":"@IEtuned  Mobile App is the Perfect #roadtrip  Companion","n":"IE Mobile App Review - Perfect Road Trip Companion for VW/Audi","p":"2023-04-16"},{"i":"G8C1LPmEPxE","c":"General/Other","o":"Avants Mercer Island Cruise The Loop and Show - 2021","n":"Avants Mercer Island Car Show & Cruise - 2021 Highlights","p":"2021-08-08"},{"i":"MNoTysqOaU4","c":"RS6/RS7","o":"Quick mod for your #rs6 !","n":"Quick & Easy Mod for Your Audi RS6 - 034 Install","p":"2023-08-08"},{"i":"w1qkOHXvaCE","c":"Channel/Brand","o":"TRAILER - How to get your car Sponsored - Inside The VAGuh","n":"How to Get Your Car Sponsored - VAGUH Documentary Trailer","p":"2021-12-09"},{"i":"scPgIoXrjuk","c":"General/Other","o":"#ceramicpro In The Rain #asmr","n":"Ceramic Pro in the Rain - Satisfying Water Beading ASMR","p":"2021-10-05"},{"i":"YSsme3Jcns0","c":"VLOG/Updates","o":"It’s Pronounced VAGuh is live!","n":"VAGUH Live Stream - Car Talk & Community Q&A","p":"2026-03-07"},{"i":"KUbRP1TfRcM","c":"VLOG/Updates","o":"Live highlight","n":"VAGUH Live Stream Highlight","p":"2026-03-07"},{"i":"e56m43904iU","c":"VLOG/Updates","o":"It’s Pronounced VA-Guh Live Stream","n":"VAGUH Live Stream - Car Talk & Community Q&A","p":"2021-12-06"}];
+window.TITLE_CHANGE_DATE = '2026-03-24'; // retitle batch completed (Action Plan: "Retitle All Porsche Videos" + 166-video optimization)
+
+function _ttDstr(d){ return d.toISOString().slice(0,10); }
+function _ttAddDays(d,n){ const x=new Date(d); x.setUTCDate(x.getUTCDate()+n); return x; }
+
+window.computeTitleWindows = function(){
+  const lag = 3; // YouTube analytics finalization lag
+  const today = new Date();
+  const afterEnd = _ttAddDays(today, -lag);
+  const change = new Date(window.TITLE_CHANGE_DATE + 'T00:00:00Z');
+  const afterStart = _ttAddDays(change, 1);
+  const N = Math.round((afterEnd - afterStart)/86400000); // day span
+  const beforeEnd = change;
+  const beforeStart = _ttAddDays(change, -(N+1));
+  const yoyStart = _ttAddDays(afterStart, -365);
+  const yoyEnd = _ttAddDays(afterEnd, -365);
+  return {
+    before:{start:_ttDstr(beforeStart), end:_ttDstr(beforeEnd)},
+    after:{start:_ttDstr(afterStart), end:_ttDstr(afterEnd)},
+    yoy:{start:_ttDstr(yoyStart), end:_ttDstr(yoyEnd)},
+    days:N+1
+  };
+};
+
+async function _ttVidReport(channelId, token, start, end){
+  const url = 'https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==' + channelId +
+    '&startDate=' + start + '&endDate=' + end +
+    '&metrics=views,estimatedMinutesWatched,averageViewDuration,subscribersGained,estimatedRevenue' +
+    '&dimensions=video&sort=-views&maxResults=200';
+  const r = await ytFetch(url, token);
+  const map = {};
+  (r.rows||[]).forEach(function(row){
+    map[row[0]] = { views:row[1], minutes:row[2], avd:row[3], subs:row[4], rev:row[5] };
+  });
+  return map;
+}
+
+async function _ttOverall(channelId, token, start, end){
+  const url = 'https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==' + channelId +
+    '&startDate=' + start + '&endDate=' + end +
+    '&metrics=views,estimatedMinutesWatched,averageViewDuration,averageViewPercentage,subscribersGained,subscribersLost,estimatedRevenue';
+  const r = await ytFetch(url, token);
+  const row = (r.rows && r.rows[0]) || [];
+  return { views:row[0]||0, minutes:row[1]||0, avd:row[2]||0, avp:row[3]||0, subsGained:row[4]||0, subsLost:row[5]||0, rev:row[6]||0 };
+}
+
+async function _ttTraffic(channelId, token, start, end){
+  const url = 'https://youtubeanalytics.googleapis.com/v2/reports?ids=channel==' + channelId +
+    '&startDate=' + start + '&endDate=' + end +
+    '&metrics=views&dimensions=insightTrafficSourceType&sort=-views';
+  const r = await ytFetch(url, token);
+  const map = {}; let total = 0;
+  (r.rows||[]).forEach(function(row){ map[row[0]] = row[1]; total += row[1]; });
+  return { map:map, total:total };
+}
+
+window.pullTitleComparison = async function(onStatus){
+  onStatus('Authenticating with Google...');
+  const token = await ytAuth();
+  onStatus('Getting channel...');
+  const chResp = await ytFetch('https://www.googleapis.com/youtube/v3/channels?part=id&mine=true', token);
+  const channelId = chResp.items[0].id;
+  const w = window.computeTitleWindows();
+  onStatus('Pulling pre-change views (' + w.before.start + ' to ' + w.before.end + ')...');
+  const before = await _ttVidReport(channelId, token, w.before.start, w.before.end);
+  onStatus('Pulling post-change views (' + w.after.start + ' to ' + w.after.end + ')...');
+  const after = await _ttVidReport(channelId, token, w.after.start, w.after.end);
+  onStatus('Pulling year-over-year window...');
+  let yoy = {};
+  try { yoy = await _ttVidReport(channelId, token, w.yoy.start, w.yoy.end); } catch(e){ yoy = {}; }
+  onStatus('Pulling channel totals & traffic sources...');
+  const overallBefore = await _ttOverall(channelId, token, w.before.start, w.before.end);
+  const overallAfter  = await _ttOverall(channelId, token, w.after.start, w.after.end);
+  const trafBefore = await _ttTraffic(channelId, token, w.before.start, w.before.end);
+  const trafAfter  = await _ttTraffic(channelId, token, w.after.start, w.after.end);
+
+  const rows = window.RETITLED.map(function(rt){
+    const b = before[rt.i]||{}, a = after[rt.i]||{}, y = yoy[rt.i]||{};
+    return {
+      id:rt.i, cat:rt.c, oldTitle:rt.o, newTitle:rt.n, pub:rt.p,
+      bViews:b.views||0, aViews:a.views||0, yViews:y.views||0,
+      bMin:b.minutes||0, aMin:a.minutes||0,
+      bAvd:b.avd||0, aAvd:a.avd||0,
+      aSubs:a.subs||0, aRev:a.rev||0
+    };
+  });
+  return { windows:w, rows:rows, overallBefore:overallBefore, overallAfter:overallAfter,
+           trafBefore:trafBefore, trafAfter:trafAfter, pulledAt:new Date().toISOString() };
+};
 </script>
 </head>
 <body>
@@ -312,8 +449,93 @@ function updateKpisFromLive(d) {
   };
 }
 
+// ── Friendly names for traffic source codes ──
+const TRAFFIC_NAMES = {
+  YT_SEARCH:"YouTube Search", EXT_URL:"External", RELATED_VIDEO:"Suggested Videos",
+  SUBSCRIBER:"Browse Features", YT_CHANNEL:"Channel Pages", PLAYLIST:"Playlists",
+  YT_PLAYLIST_PAGE:"Playlist Pages", NOTIFICATION:"Notifications", SHORTS:"Shorts Feed",
+  YT_OTHER_PAGE:"Other YouTube", NO_LINK_OTHER:"Direct/Unknown", NO_LINK_EMBEDDED:"Embedded",
+  ADVERTISING:"Advertising", PROMOTED:"Promoted", END_SCREEN:"End Screens",
+  ANNOTATION:"Annotations", HASHTAGS:"Hashtags", SOUND_PAGE:"Sound Page",
+  IMMERSIVE_LIVE:"Immersive Live", PRODUCT_PAGE:"Product Page", CAMPAIGN_CARD:"Campaign"
+};
+const CAT_COLORS = [C.red, C.green, "#5b8def", C.gold, "#a78bfa", "#2dd4bf", C.amber, "#f472b6", C.titaniumDark, "#fb923c", "#34d399", "#e879f9", "#60a5fa"];
+
+// Rebuild ALL data-driven tables from a live pull, then caller bumps refreshKey to remount tabs.
+function applyLiveEverywhere(d) {
+  try {
+    // Traffic sources
+    if (d.trafficSources && d.trafficSources.length) {
+      const tot = d.trafficSources.reduce((s,r)=>s+(r.views||0),0) || 1;
+      trafficData = d.trafficSources.map(r => ({
+        name: TRAFFIC_NAMES[r.source] || r.source,
+        views: r.views||0,
+        pct: +(100*(r.views||0)/tot).toFixed(1),
+        hours: Math.round((r.minutes||0)/60),
+        ctr: null, insight: ""
+      }));
+    }
+    // Subscriber status (non-sub first)
+    if (d.subStatus && d.subStatus.length) {
+      const tot = d.subStatus.reduce((s,r)=>s+(r.views||0),0) || 1;
+      const ns = d.subStatus.find(r=>r.status==='UNSUBSCRIBED') || {views:0};
+      const su = d.subStatus.find(r=>r.status==='SUBSCRIBED') || {views:0};
+      subData = [
+        { name:"Not Subscribed", views: ns.views||0, pct: Math.round(100*(ns.views||0)/tot) },
+        { name:"Subscribed",     views: su.views||0, pct: Math.round(100*(su.views||0)/tot) },
+      ];
+    }
+    // Revenue split (Watch Page Ads / Premium / Other)
+    if (typeof d.revenue === 'number') {
+      const ad = d.adRevenue||0, pr = d.premiumRevenue||0;
+      const other = Math.max(0, +(d.revenue - ad - pr).toFixed(2));
+      const tot = (ad+pr+other) || 1;
+      revenueData = [
+        { name:"Watch Page Ads", value: ad, pct: +(100*ad/tot).toFixed(1) },
+        { name:"YouTube Premium", value: pr, pct: +(100*pr/tot).toFixed(1) },
+        { name:"Other / Shorts", value: other, pct: +(100*other/tot).toFixed(1) },
+      ];
+    }
+    // Category aggregation from per-video totals, keyed on RETITLED categories
+    if (d.perVideo && d.perVideo.length && window.RETITLED) {
+      const catOf = {};
+      window.RETITLED.forEach(rt => { catOf[rt.i] = rt.c; });
+      const agg = {};
+      d.perVideo.forEach(v => {
+        const c = catOf[v.id] || "Other / Uncategorized";
+        if (!agg[c]) agg[c] = { name:c, videos:0, views:0, revenue:0 };
+        agg[c].videos += 1; agg[c].views += (v.views||0); agg[c].revenue += (v.revenue||0);
+      });
+      let arr = Object.values(agg).map(a => ({
+        ...a,
+        revenue: Math.round(a.revenue),
+        rpm: a.views>0 ? +(1000*a.revenue/a.views).toFixed(1) : 0,
+        avgViews: a.videos>0 ? Math.round(a.views/a.videos) : 0,
+        priority: (a.views>0 && 1000*a.revenue/a.views > 200) ? "HIGH" : (a.views>0 && 1000*a.revenue/a.views > 80) ? "MED" : "LOW",
+      }));
+      arr.sort((x,y)=>y.revenue-x.revenue);
+      arr.forEach((a,i)=>{ a.color = CAT_COLORS[i % CAT_COLORS.length]; });
+      categoryData = arr;
+    }
+    // Top videos by views (Content tab table)
+    if (d.topByViews && d.topByViews.length) {
+      const catOf = {};
+      (window.RETITLED||[]).forEach(rt => { catOf[rt.i] = rt.c; });
+      topVideos = d.topByViews.map(v => ({
+        title: v.title,
+        views: v.views||0,
+        rev: +((v.revenue||0).toFixed(2)),
+        ctr: null,
+        cat: catOf[v.id] || "—",
+        rpm: v.views>0 ? +(1000*(v.revenue||0)/v.views).toFixed(2) : 0,
+      }));
+    }
+  } catch(e) { console.warn('applyLiveEverywhere error', e); }
+}
+window.applyLiveEverywhere = applyLiveEverywhere;
+
 // ── CATEGORY DATA ──
-const categoryData = [
+let categoryData = [
   { name: "Audio/Speaker", videos: 7, views: 60085, revenue: 13246, rpm: 220.5, avgViews: 8584, priority: "HIGH", color: C.green },
   { name: "Audi S5 Build", videos: 25, views: 58904, revenue: 27844, rpm: 472.7, avgViews: 2356, priority: "HIGH", color: C.red },
   { name: "VW Golf How-To", videos: 12, views: 72139, revenue: 5854, rpm: 81.1, avgViews: 6012, priority: "HIGH", color: C.titanium },
@@ -326,7 +548,7 @@ const categoryData = [
 ];
 
 // ── TRAFFIC ──
-const trafficData = [
+let trafficData = [
     { name: "YouTube Search", views: 179223, pct: 44.3, hours: 6039, ctr: null, insight: "" },
     { name: "External", views: 75522, pct: 18.7, hours: 2948, ctr: null, insight: "" },
     { name: "Browse Features", views: 62785, pct: 15.5, hours: 3352, ctr: null, insight: "" },
@@ -344,18 +566,18 @@ const trafficData = [
     { name: "Hashtags", views: 21, pct: 0.0, hours: 0, ctr: null, insight: "" },
   ];
 
-const revenueData = [
+let revenueData = [
     { name: "Watch Page Ads", value: 1874.18, pct: 95.8 },
     { name: "YouTube Premium", value: 70.43, pct: 3.6 },
     { name: "Shorts Feed Ads", value: 11.74, pct: 0.6 },
   ];
 
-const subData = [
+let subData = [
     { name: "Not Subscribed", views: 392396, pct: 97 },
     { name: "Subscribed", views: 12328, pct: 3 },
   ];
 
-const topVideos = [
+let topVideos = [
     { title: "IS THIS YOUR EA888's NEXT MOD?", views: 34202, rev: 5.04, ctr: 0, cat: "", rpm: 0.15 },
     { title: "How to Replace the Battery on a VW Golf MK7 (Step-by-Step)", views: 26329, rev: 177.43, ctr: 0, cat: "", rpm: 6.74 },
     { title: "Audi Q7 (07-15) Cabin Air Filter Replacement", views: 26152, rev: 2.66, ctr: 0, cat: "", rpm: 0.1 },
@@ -588,7 +810,7 @@ window.channelMetrics = {
 };
 
 // ── TABS ──
-const tabs = ["Action Plan", "Porsche Retitle", "Affiliate Optimizer", "Affiliate Revenue", "Sponsorship Kit", "TikTok Strategy", "Instagram Strategy", "Facebook Strategy", "Website & Merch", "YT Overview", "YT Content", "YT Traffic & Audience", "YT Revenue"];
+const tabs = ["Action Plan", "Porsche Retitle", "Title Test", "Affiliate Optimizer", "Affiliate Revenue", "Sponsorship Kit", "TikTok Strategy", "Instagram Strategy", "Facebook Strategy", "Website & Merch", "YT Overview", "YT Content", "YT Traffic & Audience", "YT Revenue"];
 
 // ═══════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -598,6 +820,7 @@ function VAGUHPerformanceTuningCenter() {
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMsg, setRefreshMsg] = useState("");
   const [liveData, setLiveData] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Load persisted live data on mount
   useEffect(() => {
@@ -606,7 +829,9 @@ function VAGUHPerformanceTuningCenter() {
       if (saved) {
         const data = JSON.parse(saved);
         updateKpisFromLive(data);
+        applyLiveEverywhere(data);
         setLiveData(data);
+        setRefreshKey(k => k + 1);
       }
     } catch(e) {}
   }, []);
@@ -616,9 +841,11 @@ function VAGUHPerformanceTuningCenter() {
     try {
       const data = await pullYouTubeData((msg) => setRefreshMsg(msg));
       updateKpisFromLive(data);
+      applyLiveEverywhere(data);
       setLiveData(data);
+      setRefreshKey(k => k + 1);
       localStorage.setItem('vaguh_live_data', JSON.stringify(data));
-      setRefreshMsg("Live data loaded & saved!");
+      setRefreshMsg("All tabs refreshed with live data!");
       setTimeout(() => { setRefreshing(false); setRefreshMsg(""); }, 3000);
     } catch (err) {
       setRefreshMsg("Error: " + (err.message || err));
@@ -690,7 +917,7 @@ function VAGUHPerformanceTuningCenter() {
               <span style={{ fontSize: 10, color: C.titanium, marginLeft: 4, fontStyle: "italic" }}>{refreshMsg}</span>
             )}
             {liveData && !refreshMsg && (
-              <span style={{ fontSize: 9, color: C.green, marginLeft: 4 }}>● Live — {new Date(liveData.pulledAt).toLocaleString()}</span>
+              <span style={{ fontSize: 9, color: C.green, marginLeft: 4 }}>● Live — {new Date(liveData.pulledAt).toLocaleString()}{liveData.dataEnd ? ` · data thru ${liveData.dataEnd}` : ""}</span>
             )}
             {liveData && (
               <button onClick={handleDownloadData} title="Download live data as JSON" style={{
@@ -727,9 +954,11 @@ function VAGUHPerformanceTuningCenter() {
           ))}
         </div>
 
-        {/* ── TAB CONTENT ── */}
+        {/* ── TAB CONTENT (keyed so every tab remounts on each live pull) ── */}
+        <div key={refreshKey}>
         {activeTab === "Action Plan" && <ActionPlanTab />}
         {activeTab === "Porsche Retitle" && <PorscheRetitleTab />}
+        {activeTab === "Title Test" && <TitleTestTab />}
         {activeTab === "Affiliate Optimizer" && <AffiliateTab />}
         {activeTab === "Affiliate Revenue" && <AffiliateRevenueTab />}
         {activeTab === "Sponsorship Kit" && <SponsorshipKitTab />}
@@ -741,6 +970,7 @@ function VAGUHPerformanceTuningCenter() {
         {activeTab === "YT Content" && <ContentTab />}
         {activeTab === "YT Traffic & Audience" && <TrafficTab />}
         {activeTab === "YT Revenue" && <RevenueTab />}
+        </div>
       </div>
     </div>
   );
@@ -749,6 +979,214 @@ function VAGUHPerformanceTuningCenter() {
 // ═══════════════════════════════════════════════════════
 // TAB 1: ACTION PLAN (HOME)
 // ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
+// TAB: TITLE TEST (Before/After title-change comparison)
+// ═══════════════════════════════════════════════════════
+function TitleTestTab(){
+  const [data,setData]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [msg,setMsg]=useState("");
+  const [err,setErr]=useState("");
+  const [sortKey,setSortKey]=useState("pct");
+  const [cat,setCat]=useState("All");
+
+  useEffect(function(){
+    try{ const s=localStorage.getItem('vaguh_title_test'); if(s) setData(JSON.parse(s)); }catch(e){}
+  },[]);
+
+  const run=async function(){
+    setLoading(true); setErr(""); setMsg("");
+    try{
+      const d=await window.pullTitleComparison(function(m){ setMsg(m); });
+      setData(d);
+      try{ localStorage.setItem('vaguh_title_test', JSON.stringify(d)); }catch(e){}
+      setMsg("");
+    }catch(e){ setErr((e&&e.message)||String(e)); }
+    setLoading(false);
+  };
+
+  const fmt=function(n){ return Math.round(n||0).toLocaleString(); };
+  const pctOf=function(a,b){ return b>0 ? ((a-b)/b*100) : (a>0?100:0); };
+  const dur=function(s){ s=Math.round(s||0); const m=Math.floor(s/60); const ss=s%60; return m+":"+String(ss).padStart(2,'0'); };
+  const Delta=function(props){
+    const v=props.v; const good=v>=0;
+    return <span style={{color: good?C.green:C.red, fontWeight:800}}>{good?"+":""}{v.toFixed(0)}%</span>;
+  };
+
+  let agg=null, rows=[], cats=["All"], verdict=null;
+  if(data){
+    const R=data.rows;
+    const sum=function(f){ return R.reduce(function(s,r){ return s+(f(r)||0); },0); };
+    const bV=sum(function(r){return r.bViews;}), aV=sum(function(r){return r.aViews;}), yV=sum(function(r){return r.yViews;});
+    const bMin=sum(function(r){return r.bMin;}), aMin=sum(function(r){return r.aMin;});
+    const aSubs=sum(function(r){return r.aSubs;}), aRev=sum(function(r){return r.aRev;});
+    const bAvd= bV>0 ? Math.round(bMin*60/bV) : 0;
+    const aAvd= aV>0 ? Math.round(aMin*60/aV) : 0;
+    const searchB=(data.trafBefore.map.YT_SEARCH)||0, searchA=(data.trafAfter.map.YT_SEARCH)||0;
+    const shareB= data.trafBefore.total>0 ? searchB/data.trafBefore.total*100 : 0;
+    const shareA= data.trafAfter.total>0 ? searchA/data.trafAfter.total*100 : 0;
+    agg={bV:bV,aV:aV,yV:yV,bMin:bMin,aMin:aMin,aSubs:aSubs,aRev:aRev,bAvd:bAvd,aAvd:aAvd,
+         searchB:searchB,searchA:searchA,shareB:shareB,shareA:shareA,
+         pct:pctOf(aV,bV), yoyPct:pctOf(aV,yV)};
+    const cs={}; R.forEach(function(r){ cs[r.cat]=1; }); cats=["All"].concat(Object.keys(cs).sort());
+    rows=R.filter(function(r){ return cat==="All"||r.cat===cat; }).map(function(r){
+      return Object.assign({}, r, {pct:pctOf(r.aViews,r.bViews), yoyPct:pctOf(r.aViews,r.yViews)});
+    });
+    rows.sort(function(x,y){
+      if(sortKey==="pct") return y.pct-x.pct;
+      if(sortKey==="after") return y.aViews-x.aViews;
+      if(sortKey==="before") return y.bViews-x.bViews;
+      if(sortKey==="yoy") return y.yoyPct-x.yoyPct;
+      return 0;
+    });
+    verdict = agg.pct>=5 ? {t:"NEW TITLES LOOK POSITIVE", c:C.green, d:"Retitled videos pulled more views in the post-change window than the matched window before it."}
+      : agg.pct>=-3 ? {t:"ROUGHLY FLAT / HELD STEADY", c:C.amber, d:"Views are about even before vs after. For older videos that normally decay with age, holding flat is a mild win."}
+      : {t:"VIEWS DOWN POST-CHANGE", c:C.red, d:"Retitled videos drew fewer views after the change. Could be natural aging decay, seasonality, or weaker titles — check the year-over-year column and top losers below."};
+  }
+
+  const winners = data ? data.rows.map(function(r){return Object.assign({},r,{pct:pctOf(r.aViews,r.bViews)});}).filter(function(r){return r.bViews>=200;}).sort(function(a,b){return b.pct-a.pct;}) : [];
+  const top5=winners.slice(0,5), bot5=winners.slice(-5).reverse();
+
+  const StatCard=function(props){
+    return <div style={Object.assign({},cardInner,{flex:"1 1 160px",minWidth:150})}>
+      <div style={{fontSize:9,color:C.muted,letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>{props.label}</div>
+      <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap"}}>
+        <span style={{fontSize:14,color:C.muted}}>{props.before}</span>
+        <span style={{fontSize:12,color:C.muted}}>→</span>
+        <span style={{fontSize:20,fontWeight:900,color:props.color||C.white}}>{props.after}</span>
+      </div>
+      {props.delta!==undefined && <div style={{marginTop:6,fontSize:12}}><Delta v={props.delta}/> <span style={{color:C.muted,fontSize:10}}>{props.note||""}</span></div>}
+    </div>;
+  };
+
+  return (
+    <div>
+      {/* Header / run */}
+      <div style={Object.assign({},card,{borderLeft:`4px solid ${C.red}`})}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:12}}>
+          <div>
+            <div style={{fontSize:22,fontWeight:900,color:C.white,letterSpacing:1}}>TITLE CHANGE — DID IT WORK?</div>
+            <div style={{fontSize:12,color:C.text,marginTop:6,maxWidth:680,lineHeight:1.5}}>
+              Compares the <b>166 retitled videos</b> in the 90 days <b>after</b> the title change against the matched 90 days <b>before</b> it, plus the same window <b>last year</b> to control for seasonality and natural view decay.
+            </div>
+            {data && <div style={{fontSize:11,color:C.titanium,marginTop:8}}>
+              Before: <b>{data.windows.before.start} → {data.windows.before.end}</b> &nbsp;|&nbsp; After: <b>{data.windows.after.start} → {data.windows.after.end}</b> &nbsp;|&nbsp; {data.windows.days} days each
+              <span style={{color:C.muted}}> &nbsp;·&nbsp; pulled {new Date(data.pulledAt).toLocaleString()}</span>
+            </div>}
+          </div>
+          <button onClick={run} disabled={loading} style={{
+            background: loading?"rgba(255,255,255,0.05)":C.red, color: loading?C.muted:"#fff",
+            border:"none", borderRadius:24, padding:"10px 20px", fontSize:11, fontWeight:800,
+            letterSpacing:1.5, textTransform:"uppercase", cursor: loading?"default":"pointer", whiteSpace:"nowrap"
+          }}>{loading? "⟳ Pulling..." : (data? "⟳ Refresh Live Data" : "⟳ Run Comparison (Live)")}</button>
+        </div>
+        {msg && <div style={{marginTop:10,fontSize:11,color:C.titanium,fontStyle:"italic"}}>{msg}</div>}
+        {err && <div style={{marginTop:10,fontSize:11,color:C.red}}>Error: {err}</div>}
+      </div>
+
+      {/* Caveat */}
+      <div style={Object.assign({},cardInner,{marginBottom:16,borderLeft:`3px solid ${C.amber}`})}>
+        <div style={{fontSize:10,color:C.amber,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>How to read this</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.6}}>
+          YouTube's API does <b>not</b> expose impressions or click-through rate (CTR) — those live only in YouTube Studio. So this uses the best available signals: <b>views, watch time, average view duration, and search-traffic share</b>. Since titles mainly affect how videos get <b>found in search and suggested</b>, a working retitle should show up as more views and a higher share of search traffic. Older videos naturally lose views as they age, so the <b>year-over-year</b> column is the fairer test.
+        </div>
+      </div>
+
+      {!data && !loading && (
+        <div style={Object.assign({},card,{textAlign:"center",padding:"48px 24px"})}>
+          <div style={{fontSize:14,color:C.muted}}>Click <b style={{color:C.red}}>Run Comparison (Live)</b> above to pull the before/after numbers from YouTube. You'll be asked to sign in with the Google account that owns the channel.</div>
+        </div>
+      )}
+
+      {agg && verdict && (
+        <div>
+          {/* Verdict */}
+          <div style={Object.assign({},card,{borderLeft:`4px solid ${verdict.c}`,background:"#202020"})}>
+            <div style={{fontSize:18,fontWeight:900,color:verdict.c,letterSpacing:1}}>{verdict.t}</div>
+            <div style={{fontSize:13,color:C.text,marginTop:8,lineHeight:1.55,maxWidth:760}}>{verdict.d}</div>
+            <div style={{fontSize:12,color:C.titanium,marginTop:10}}>
+              Cohort views: <b>{fmt(agg.bV)}</b> before → <b style={{color:C.white}}>{fmt(agg.aV)}</b> after (<Delta v={agg.pct}/>) &nbsp;·&nbsp; vs same window last year <b>{fmt(agg.yV)}</b> (<Delta v={agg.yoyPct}/>)
+            </div>
+          </div>
+
+          {/* Stat cards */}
+          <div style={Object.assign({},card,{display:"flex",gap:12,flexWrap:"wrap"})}>
+            <StatCard label="Retitled-video Views (90d)" before={fmt(agg.bV)} after={fmt(agg.aV)} delta={agg.pct} color={C.white} note="before → after"/>
+            <StatCard label="Watch Hours (cohort)" before={fmt(agg.bMin/60)} after={fmt(agg.aMin/60)} delta={pctOf(agg.aMin,agg.bMin)} color={C.titanium}/>
+            <StatCard label="Avg View Duration" before={dur(agg.bAvd)} after={dur(agg.aAvd)} delta={pctOf(agg.aAvd,agg.bAvd)} color={C.cyan||C.titanium}/>
+            <StatCard label="Search-traffic Share" before={agg.shareB.toFixed(1)+"%"} after={agg.shareA.toFixed(1)+"%"} delta={agg.shareA-agg.shareB} note="pts change" color={C.green}/>
+            <StatCard label="Search Views (channel)" before={fmt(agg.searchB)} after={fmt(agg.searchA)} delta={pctOf(agg.searchA,agg.searchB)} color={C.green}/>
+            <StatCard label="Subs Gained (after, cohort)" before={""} after={fmt(agg.aSubs)} color={C.amber}/>
+          </div>
+
+          {/* Top movers */}
+          <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+            <div style={Object.assign({},card,{flex:"1 1 320px"})}>
+              <div style={{fontSize:11,color:C.green,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Biggest Winners</div>
+              {top5.map(function(r){ return <div key={r.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.cardBorder}`}}>
+                <span style={{fontSize:11,color:C.text,maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.newTitle}</span>
+                <span style={{fontSize:11,whiteSpace:"nowrap"}}>{fmt(r.bViews)}→{fmt(r.aViews)} <Delta v={r.pct}/></span>
+              </div>; })}
+            </div>
+            <div style={Object.assign({},card,{flex:"1 1 320px"})}>
+              <div style={{fontSize:11,color:C.red,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Biggest Losers</div>
+              {bot5.map(function(r){ return <div key={r.id} style={{display:"flex",justifyContent:"space-between",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.cardBorder}`}}>
+                <span style={{fontSize:11,color:C.text,maxWidth:240,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.newTitle}</span>
+                <span style={{fontSize:11,whiteSpace:"nowrap"}}>{fmt(r.bViews)}→{fmt(r.aViews)} <Delta v={r.pct}/></span>
+              </div>; })}
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",margin:"4px 0 12px"}}>
+            <span style={{fontSize:10,color:C.muted,letterSpacing:1,textTransform:"uppercase"}}>Category</span>
+            <select value={cat} onChange={function(e){setCat(e.target.value);}} style={{background:C.cardBg,color:C.text,border:`1px solid ${C.cardBorder}`,borderRadius:6,padding:"6px 10px",fontSize:11}}>
+              {cats.map(function(c){ return <option key={c} value={c}>{c}</option>; })}
+            </select>
+            <span style={{fontSize:10,color:C.muted,letterSpacing:1,textTransform:"uppercase",marginLeft:8}}>Sort</span>
+            {[["pct","Δ% views"],["yoy","Δ% YoY"],["after","After views"],["before","Before views"]].map(function(o){
+              return <button key={o[0]} onClick={function(){setSortKey(o[0]);}} style={{
+                background: sortKey===o[0]?C.red:"transparent", color: sortKey===o[0]?"#fff":C.muted,
+                border:`1px solid ${sortKey===o[0]?C.red:C.cardBorder}`, borderRadius:6, padding:"6px 10px",
+                fontSize:10, fontWeight:700, letterSpacing:1, textTransform:"uppercase", cursor:"pointer"
+              }}>{o[1]}</button>;
+            })}
+            <span style={{fontSize:10,color:C.muted,marginLeft:"auto"}}>{rows.length} videos</span>
+          </div>
+
+          {/* Table */}
+          <div style={Object.assign({},card,{padding:0,overflow:"hidden"})}>
+            <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+              <thead><tr style={{background:"#202020"}}>
+                {["Video (new title)","Category","Before","After","Δ%","YoY%","AVD b→a"].map(function(h,i){
+                  return <th key={i} style={{textAlign:i<2?"left":"right",padding:"10px 12px",color:C.muted,fontWeight:700,letterSpacing:1,textTransform:"uppercase",fontSize:9,whiteSpace:"nowrap",borderBottom:`1px solid ${C.cardBorder}`}}>{h}</th>;
+                })}
+              </tr></thead>
+              <tbody>
+                {rows.map(function(r){ return <tr key={r.id} style={{borderBottom:`1px solid ${C.cardBorder}`}}>
+                  <td style={{padding:"9px 12px",maxWidth:320}}>
+                    <div style={{color:C.white,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:320}} title={r.newTitle}>{r.newTitle}</div>
+                    <div style={{color:C.muted,fontSize:9,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:320}} title={r.oldTitle}>was: {r.oldTitle}</div>
+                  </td>
+                  <td style={{padding:"9px 12px",color:C.titanium,whiteSpace:"nowrap"}}>{r.cat}</td>
+                  <td style={{padding:"9px 12px",textAlign:"right",color:C.text}}>{fmt(r.bViews)}</td>
+                  <td style={{padding:"9px 12px",textAlign:"right",color:C.white,fontWeight:700}}>{fmt(r.aViews)}</td>
+                  <td style={{padding:"9px 12px",textAlign:"right"}}><Delta v={r.pct}/></td>
+                  <td style={{padding:"9px 12px",textAlign:"right"}}>{r.yViews>0 ? <Delta v={r.yoyPct}/> : <span style={{color:C.muted}}>—</span>}</td>
+                  <td style={{padding:"9px 12px",textAlign:"right",color:C.muted,whiteSpace:"nowrap"}}>{dur(r.bAvd)}→{dur(r.aAvd)}</td>
+                </tr>; })}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ActionPlanTab() {
   const [tasks, setTasks] = useState(actionTasks);
   const [expanded, setExpanded] = useState(null);
@@ -1285,7 +1723,7 @@ function ContentTab() {
               <td style={{ padding: 8 }}><span style={{ background: "rgba(255,255,255,0.04)", padding: "2px 6px", borderRadius: 2, fontSize: 10, letterSpacing: 0.5 }}>{v.cat}</span></td>
               <td style={{ padding: 8 }}>{v.views.toLocaleString()}</td>
               <td style={{ padding: 8, color: C.green, fontWeight: 700 }}>${v.rev.toLocaleString()}</td>
-              <td style={{ padding: 8, color: v.ctr > 7 ? C.green : v.ctr > 5 ? C.amber : C.red }}>{v.ctr}%</td>
+              <td style={{ padding: 8, color: v.ctr == null ? C.muted : v.ctr > 7 ? C.green : v.ctr > 5 ? C.amber : C.red }}>{v.ctr == null ? "N/A" : v.ctr + "%"}</td>
               <td style={{ padding: 8, color: v.rpm > 100 ? C.green : C.muted }}>${v.rpm.toFixed(2)}</td>
             </tr>
           ))}</tbody>
@@ -1299,6 +1737,8 @@ function ContentTab() {
 // TAB 6: TRAFFIC & AUDIENCE
 // ═══════════════════════════════════════════════════════
 function TrafficTab() {
+  const nonSubPct = (subData[0] && subData[0].pct != null) ? subData[0].pct : 97;
+  const subPct = (subData[1] && subData[1].pct != null) ? subData[1].pct : 3;
   return (
     <div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 24 }}>
@@ -1327,8 +1767,8 @@ function TrafficTab() {
               <PieChart><Pie data={subData} cx="50%" cy="50%" innerRadius={40} outerRadius={75} dataKey="views"><Cell fill={C.red} /><Cell fill={C.green} /></Pie></PieChart>
             </ResponsiveContainer>
             <div>
-              <div style={{ marginBottom: 16 }}><div style={{ fontSize: 36, fontWeight: 900, color: C.red }}>97%</div><div style={{ fontSize: 12, color: C.muted }}>Non-subscribers</div></div>
-              <div><div style={{ fontSize: 36, fontWeight: 900, color: C.green }}>3%</div><div style={{ fontSize: 12, color: C.muted }}>Subscribers</div></div>
+              <div style={{ marginBottom: 16 }}><div style={{ fontSize: 36, fontWeight: 900, color: C.red }}>{nonSubPct}%</div><div style={{ fontSize: 12, color: C.muted }}>Non-subscribers</div></div>
+              <div><div style={{ fontSize: 36, fontWeight: 900, color: C.green }}>{subPct}%</div><div style={{ fontSize: 12, color: C.muted }}>Subscribers</div></div>
             </div>
           </div>
           <div style={{ ...cardInner, marginTop: 12, background: C.redDim }}>
